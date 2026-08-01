@@ -1,5 +1,6 @@
-OK!  Pretty good!  But we've lost two panels, and the controls on the right take up too much space.
-
-It needs some simplification.
-
-And I think I'd like to add some details to the Dictionary...
+Panes to add:
+* Future Ideas: Future Ideas
+* Git Changes
+* Dictionary
+* (structure)
+* (resources/jumpers)
