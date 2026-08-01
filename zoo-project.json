@@ -1,0 +1,21 @@
+{
+  "zookeep-project-guid": "6a6fb6e2-f293-4003-bc59-eed92d19ea9a",
+  "name": "pydeck26",
+  "repo-type": "python-2026-03",
+  "license": "CC0-1.0",
+  "repository": {
+    "name": "pydeck26",
+    "visibility": "public"
+  },
+  "python": {
+    "distribution": {
+      "name": "pydeck26"
+    },
+    "import-packages": [
+      {
+        "name": "pydeck26",
+        "path": "src/pydeck26"
+      }
+    ]
+  }
+}
