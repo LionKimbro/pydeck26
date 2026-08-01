@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+from datetime import datetime
 from pathlib import Path
 import tkinter as tk
 from tkinter import ttk
@@ -27,8 +28,11 @@ from pydeck26.storage import (
 g = {
     "project-root": None,
     "snapshot": None,
-    "snapshots": [],
+    "current-text": "",
+    "virtual-snapshot": None,
+    "history-items": [],
     "view-index": 0,
+    "suppress-editor-events": False,
     "status": "Opening PyDeck 26.",
 }
 widgets = {}
@@ -83,10 +87,13 @@ def build_cockpit_surface(window: tk.Toplevel) -> None:
     surface.columnconfigure(0, weight=1, uniform="cockpit-columns")
     surface.columnconfigure(1, weight=1, uniform="cockpit-columns")
     surface.rowconfigure(0, weight=1)
-    surface.rowconfigure(1, weight=3)
+    surface.rowconfigure(1, weight=1)
+    surface.rowconfigure(2, weight=4)
     widgets["cockpit-surface"] = surface
     build_inactive_card({"title": "STRUCTURE", "hint": "folders, packages, paths, jumpers", "row": 0, "column": 0})
     build_inactive_card({"title": "DICTIONARY", "hint": "project identity, editable entry", "row": 0, "column": 1})
+    build_inactive_card({"title": "CONVERSATIONS", "hint": "lifeline, register, return paths", "row": 1, "column": 0})
+    build_inactive_card({"title": "RESOURCES / JUMPERS", "hint": "tools, documents, and useful places", "row": 1, "column": 1})
     build_whiteboard_card()
 
 
@@ -104,7 +111,7 @@ def build_whiteboard_card() -> None:
     """Build the directly editable present and its right-hand historical control."""
     surface = widgets["cockpit-surface"]
     card = tk.Frame(surface, background="#ffffff", highlightbackground="#c7d2df", highlightthickness=1, padx=14, pady=12)
-    card.grid(row=1, column=0, columnspan=2, sticky="nsew", padx=5, pady=5)
+    card.grid(row=2, column=0, columnspan=2, sticky="nsew", padx=5, pady=5)
     card.columnconfigure(0, weight=1)
     card.rowconfigure(2, weight=1)
     tk.Label(card, text="WHITEBOARD", background="#ffffff", foreground="#173b62", font=("TkDefaultFont", 12, "bold")).grid(row=0, column=0, sticky="w")
@@ -112,27 +119,19 @@ def build_whiteboard_card() -> None:
 
     controls = ttk.Frame(card)
     controls.grid(row=0, column=1, rowspan=2, sticky="e")
-    ttk.Button(controls, text="Save", command=handle_when_user_saves_whiteboard).grid(row=0, column=0, padx=(0, 6))
-    ttk.Button(controls, text="Save Snapshot", command=handle_when_user_saves_snapshot).grid(row=0, column=1, padx=(0, 6))
-    ttk.Button(controls, text="Return to Current", command=handle_when_user_returns_to_current).grid(row=0, column=2)
+    ttk.Button(controls, text="Snapshot", command=handle_when_user_saves_snapshot).grid(row=0, column=0)
 
     editor = tk.Text(card, wrap="word", undo=True, font=("TkFixedFont", 11), padx=10, pady=10, relief="solid", borderwidth=1)
     editor.grid(row=2, column=0, sticky="nsew", padx=(0, 10))
-    editor.bind("<Control-s>", handle_when_user_uses_save_shortcut)
+    editor.bind("<<Modified>>", handle_when_whiteboard_text_changes)
     widgets["whiteboard-editor"] = editor
 
-    history = tk.Frame(card, background="#f2f5f8", padx=10, pady=10, width=185)
+    history = tk.Frame(card, background="#f2f5f8", padx=6, pady=8, width=52)
     history.grid(row=2, column=1, sticky="ns")
     history.grid_propagate(False)
-    tk.Label(history, text="HISTORY", background="#f2f5f8", foreground="#173b62", font=("TkDefaultFont", 10, "bold")).pack(anchor="w")
-    selected = tk.Label(history, text="CURRENT", background="#f2f5f8", foreground="#263746", wraplength=165, justify="left")
-    selected.pack(anchor="w", pady=(8, 6))
-    scale = tk.Scale(history, from_=0, to=0, orient="vertical", resolution=1, showvalue=False, length=205, command=handle_when_snapshot_scale_changes, background="#f2f5f8", highlightthickness=0)
+    scale = tk.Scale(history, from_=0, to=0, orient="vertical", resolution=1, showvalue=False, length=245, command=handle_when_snapshot_scale_changes, background="#f2f5f8", highlightthickness=0)
     scale.pack(anchor="center", fill="y", expand=True)
-    ttk.Button(history, text="Restore as Current", command=handle_when_user_restores_snapshot).pack(anchor="w", pady=(8, 0))
-    widgets["history-selected"] = selected
     widgets["snapshot-scale"] = scale
-    widgets["restore-snapshot"] = history.winfo_children()[-1]
 
     initialization = tk.Frame(card, background="#fff6d8", padx=10, pady=8)
     tk.Label(initialization, text="PyDeck 26 has not been initialized for this project.", background="#fff6d8", foreground="#654f00").pack(side="left")
@@ -163,7 +162,7 @@ def refresh_cockpit_for_bound_project() -> None:
         widgets["initialization-panel"].grid_remove()
         load_current_whiteboard()
         refresh_snapshot_navigation()
-        g["status"] = "Whiteboard ready."
+        g["status"] = "Current"
     else:
         show_initialization_state()
     project_status()
@@ -191,9 +190,7 @@ def show_initialization_state() -> None:
     set_editor_text("Initialize PyDeck 26 to open this project's Whiteboard.\n\nNo unrelated project files will be created or changed.")
     editor.configure(state="disabled")
     widgets["initialization-panel"].grid(row=3, column=0, sticky="ew", pady=(8, 0))
-    widgets["history-selected"].configure(text="NOT INITIALIZED")
     widgets["snapshot-scale"].configure(to=0, state="disabled")
-    widgets["restore-snapshot"].configure(state="disabled")
     g["status"] = "PyDeck 26 has not been initialized for this project."
 
 
@@ -204,88 +201,57 @@ def handle_when_user_initializes_project() -> None:
     widgets["snapshot-scale"].configure(state="normal")
     load_current_whiteboard()
     refresh_snapshot_navigation()
-    g["status"] = "PyDeck 26 initialized. Whiteboard ready."
+    g["status"] = "Current"
     project_status()
 
 
 def load_current_whiteboard() -> None:
     """Display the mutable current Whiteboard in editable form."""
-    set_editor_text(load_whiteboard(g["project-root"]))
+    g["current-text"] = load_whiteboard(g["project-root"])
+    set_editor_text(g["current-text"])
     widgets["whiteboard-editor"].configure(state="normal")
-    widgets["history-selected"].configure(text="CURRENT")
-    widgets["restore-snapshot"].configure(state="disabled")
     g["view-index"] = 0
 
 
 def refresh_snapshot_navigation() -> None:
-    """Discover history and make the scale's positions discrete and newest-first."""
-    g["snapshots"] = list_snapshots(g["project-root"])
+    """Build discrete history positions: current, virtual, then disk snapshots."""
+    items = []
+    if g["virtual-snapshot"] is not None:
+        items.append(g["virtual-snapshot"])
+    for path in list_snapshots(g["project-root"]):
+        items.append({"kind": "snapshot", "path": path})
+    g["history-items"] = items
     scale = widgets["snapshot-scale"]
-    scale.configure(to=len(g["snapshots"]), state="normal")
+    scale.configure(to=len(items), state="normal")
     scale.set(0)
 
 
 def handle_when_snapshot_scale_changes(value: str) -> None:
-    """Recall current text or one immutable snapshot from a discrete scale position."""
+    """Recall current, virtual, or disk history from a discrete scale position."""
     index = int(float(value))
     if index == g["view-index"]:
         return
     if index == 0:
         load_current_whiteboard()
-        g["status"] = "Viewing current Whiteboard."
+        g["status"] = "Current"
     else:
-        show_historical_snapshot(index)
+        show_history_item(index)
     project_status()
 
 
-def show_historical_snapshot(index: int) -> None:
-    """Show one historical state read-only, preserving its immutable source file."""
-    path = g["snapshots"][index - 1]
-    set_editor_text(read_snapshot(path))
-    widgets["whiteboard-editor"].configure(state="disabled")
-    widgets["history-selected"].configure(text=f"Snapshot:\n{format_snapshot_time(path)}")
-    widgets["restore-snapshot"].configure(state="normal")
+def show_history_item(index: int) -> None:
+    """Show an editable historical point whose first edit naturally creates a new present."""
+    item = g["history-items"][index - 1]
+    if item["kind"] == "virtual":
+        text = item["text"]
+        label = f"Virtual snapshot: from {item['created-at'].strftime('%Y-%m-%d %H:%M:%S')}"
+    else:
+        text = read_snapshot(item["path"])
+        label = f"Snapshot: {format_snapshot_time(item['path'])}"
+    set_editor_text(text)
+    widgets["whiteboard-editor"].configure(state="normal")
     g["view-index"] = index
-    g["status"] = f"Viewing snapshot from {format_snapshot_time(path)}."
-
-
-def handle_when_user_returns_to_current() -> None:
-    """Move history navigation back to the mutable current Whiteboard."""
-    widgets["snapshot-scale"].set(0)
-    load_current_whiteboard()
-    g["status"] = "Viewing current Whiteboard."
-    project_status()
-
-
-def handle_when_user_restores_snapshot() -> None:
-    """Copy a viewed historical state into the current Whiteboard without changing history."""
-    if g["view-index"] == 0:
-        return
-    path = g["snapshots"][g["view-index"] - 1]
-    text = read_snapshot(path)
-    save_whiteboard(g["project-root"], text)
-    widgets["snapshot-scale"].set(0)
-    load_current_whiteboard()
-    g["status"] = "Snapshot restored as current Whiteboard."
-    project_status()
-
-
-def handle_when_user_saves_whiteboard() -> None:
-    """Save the editable current Whiteboard through the reliable storage boundary."""
-    if not is_initialized(g["project-root"]):
-        g["status"] = "Initialize PyDeck 26 before saving the Whiteboard."
-    elif g["view-index"] != 0:
-        g["status"] = "Return to Current or restore this snapshot before saving."
-    else:
-        save_whiteboard(g["project-root"], get_editor_text())
-        g["status"] = "Whiteboard saved."
-    project_status()
-
-
-def handle_when_user_uses_save_shortcut(event: tk.Event) -> str:
-    """Make Ctrl+S save the current Whiteboard."""
-    handle_when_user_saves_whiteboard()
-    return "break"
+    g["status"] = label
 
 
 def handle_when_user_saves_snapshot() -> None:
@@ -293,11 +259,38 @@ def handle_when_user_saves_snapshot() -> None:
     if not is_initialized(g["project-root"]):
         g["status"] = "Initialize PyDeck 26 before creating a Whiteboard snapshot."
     elif g["view-index"] != 0:
-        g["status"] = "Return to Current or restore this snapshot before creating a new snapshot."
+        g["status"] = "Only Current can be snapshotted."
     else:
-        path = save_snapshot(g["project-root"], get_editor_text())
+        try:
+            save_snapshot(g["project-root"], g["current-text"])
+        except FileExistsError:
+            g["status"] = "A snapshot already exists for this second. Please try again."
+        else:
+            refresh_snapshot_navigation()
+            g["status"] = "Current"
+    project_status()
+
+
+def handle_when_whiteboard_text_changes(event: tk.Event) -> None:
+    """Auto-save edits and promote recalled history into a new current Whiteboard."""
+    editor = widgets["whiteboard-editor"]
+    if g["suppress-editor-events"] or not editor.edit_modified():
+        return
+    editor.edit_modified(False)
+    new_text = get_editor_text()
+    if g["view-index"] != 0:
+        g["virtual-snapshot"] = {
+            "kind": "virtual",
+            "text": g["current-text"],
+            "created-at": datetime.now(),
+        }
+        g["view-index"] = 0
+        g["current-text"] = new_text
         refresh_snapshot_navigation()
-        g["status"] = f"Snapshot saved: {format_snapshot_time(path)}."
+    else:
+        g["current-text"] = new_text
+    save_whiteboard(g["project-root"], g["current-text"])
+    g["status"] = "Current"
     project_status()
 
 
@@ -320,9 +313,12 @@ def handle_when_user_closes_main_cockpit() -> None:
 def set_editor_text(text: str) -> None:
     """Replace displayed Whiteboard text while temporarily allowing writes."""
     editor = widgets["whiteboard-editor"]
+    g["suppress-editor-events"] = True
     editor.configure(state="normal")
     editor.delete("1.0", tk.END)
     editor.insert("1.0", text)
+    editor.edit_modified(False)
+    g["suppress-editor-events"] = False
 
 
 def get_editor_text() -> str:
