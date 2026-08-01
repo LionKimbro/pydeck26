@@ -23,6 +23,7 @@ The GUI can also initialize an uninitialized project. PyDeck creates only its ow
 ```text
 db/pydeck26/whiteboard.txt
 db/pydeck26/settings.json
+db/pydeck26/conversations.json
 docs/whiteboard/<local-timestamp>.txt
 ```
 

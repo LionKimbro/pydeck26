@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 import os
+import json
 import tempfile
 
 
@@ -36,11 +37,38 @@ def initialize_project(root: Path) -> None:
     settings_path = get_pydeck_data_dir(root) / "settings.json"
     if not settings_path.exists():
         write_text_atomic(settings_path, "{}\n")
+    conversations_path = get_pydeck_data_dir(root) / "conversations.json"
+    if not conversations_path.exists():
+        write_text_atomic(conversations_path, '{"items": []}\n')
 
 
 def load_whiteboard(root: Path) -> str:
     """Read the current Whiteboard as ordinary UTF-8 text."""
     return get_whiteboard_path(root).read_text(encoding="utf-8")
+
+
+def get_conversations_path(root: Path) -> Path:
+    """Return the project-local conversation register path."""
+    return get_pydeck_data_dir(root) / "conversations.json"
+
+
+def load_conversations(root: Path) -> dict:
+    """Read the conversation register while tolerating its absence before initialization."""
+    path = get_conversations_path(root)
+    if not path.is_file():
+        return {"items": []}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise ValueError("conversations.json must contain a JSON object")
+    if not isinstance(data.get("items"), list):
+        data["items"] = []
+    return data
+
+
+def save_conversations(root: Path, document: dict) -> None:
+    """Persist the complete conversation document, including unfamiliar preserved fields."""
+    content = json.dumps(document, indent=2, ensure_ascii=False)
+    write_text_atomic(get_conversations_path(root), f"{content}\n")
 
 
 def save_whiteboard(root: Path, text: str) -> None:

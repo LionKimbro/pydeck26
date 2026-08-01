@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import datetime
+import uuid
+import webbrowser
+from datetime import date, datetime
 from pathlib import Path
 import tkinter as tk
 from tkinter import ttk
@@ -12,6 +14,7 @@ from tkinter import ttk
 import lionscliapp as app
 from lionscliapp.execroot import get_execroot
 
+from pydeck26 import description_editor
 from pydeck26.project_snapshot import read_project_snapshot
 from pydeck26.storage import (
     format_snapshot_time,
@@ -19,8 +22,10 @@ from pydeck26.storage import (
     is_initialized,
     list_snapshots,
     load_whiteboard,
+    load_conversations,
     read_snapshot,
     save_snapshot,
+    save_conversations,
     save_whiteboard,
 )
 
@@ -32,6 +37,13 @@ g = {
     "virtual-snapshot": None,
     "history-items": [],
     "view-index": 0,
+    "is-dirty": False,
+    "conversations-document": {"items": []},
+    "selected-conversation-id": None,
+    "conversation-editor-dirty": False,
+    "conversations-dirty": False,
+    "project-name": "no project entered",
+    "project-guid": "",
     "suppress-editor-events": False,
     "status": "Opening PyDeck 26.",
 }
@@ -58,6 +70,7 @@ def realize_main_cockpit_window(root: tk.Tk) -> None:
     window.columnconfigure(0, weight=1)
     window.rowconfigure(1, weight=1)
     widgets["window"] = window
+    window.bind_all("<Control-s>", handle_when_user_uses_project_save_shortcut)
     build_masthead(window)
     build_cockpit_surface(window)
     build_status_bar(window)
@@ -70,14 +83,22 @@ def build_masthead(window: tk.Toplevel) -> None:
     header.grid(row=0, column=0, sticky="ew")
     title = tk.Label(header, background="#182333", foreground="#f4f7fb", font=("TkDefaultFont", 19, "bold"))
     title.pack(anchor="w")
+    title.configure(cursor="hand2")
+    title.bind("<Button-1>", handle_when_user_clicks_project_title)
     hook = tk.Label(header, background="#182333", foreground="#b8c7da", font=("TkDefaultFont", 10), wraplength=1040, justify="left")
     hook.pack(anchor="w", pady=(3, 3))
-    path = tk.Label(header, background="#182333", foreground="#8fc4f4", cursor="hand2", font=("TkDefaultFont", 9, "underline"))
-    path.pack(anchor="w")
+    path_line = tk.Frame(header, background="#182333")
+    path_line.pack(anchor="w")
+    path = tk.Label(path_line, background="#182333", foreground="#8fc4f4", cursor="hand2", font=("TkDefaultFont", 9, "underline"))
+    path.pack(side="left")
     path.bind("<Button-1>", handle_when_user_clicks_project_root_path)
+    guid = tk.Label(path_line, background="#182333", foreground="#526273", cursor="hand2", font=("TkDefaultFont", 9))
+    guid.pack(side="left", padx=(8, 0))
+    guid.bind("<Button-1>", handle_when_user_clicks_project_guid)
     widgets["title"] = title
     widgets["hook"] = hook
     widgets["project-root-path"] = path
+    widgets["project-guid"] = guid
 
 
 def build_cockpit_surface(window: tk.Toplevel) -> None:
@@ -87,12 +108,12 @@ def build_cockpit_surface(window: tk.Toplevel) -> None:
     surface.columnconfigure(0, weight=1, uniform="cockpit-columns")
     surface.columnconfigure(1, weight=1, uniform="cockpit-columns")
     surface.rowconfigure(0, weight=1)
-    surface.rowconfigure(1, weight=1)
-    surface.rowconfigure(2, weight=4)
+    surface.rowconfigure(1, weight=2)
+    surface.rowconfigure(2, weight=0)
     widgets["cockpit-surface"] = surface
     build_inactive_card({"title": "STRUCTURE", "hint": "folders, packages, paths, jumpers", "row": 0, "column": 0})
     build_inactive_card({"title": "DICTIONARY", "hint": "project identity, editable entry", "row": 0, "column": 1})
-    build_inactive_card({"title": "CONVERSATIONS", "hint": "lifeline, register, return paths", "row": 1, "column": 0})
+    build_conversations_card()
     build_inactive_card({"title": "RESOURCES / JUMPERS", "hint": "tools, documents, and useful places", "row": 1, "column": 1})
     build_whiteboard_card()
 
@@ -105,6 +126,253 @@ def build_inactive_card(card_spec: dict) -> None:
     tk.Label(card, text=card_spec["title"], background="#ffffff", foreground="#173b62", font=("TkDefaultFont", 12, "bold")).pack(anchor="w")
     tk.Label(card, text=card_spec["hint"], background="#ffffff", foreground="#667789", font=("TkDefaultFont", 9)).pack(anchor="w", pady=(1, 10))
     tk.Label(card, text="This room is being held open for the project.", background="#ffffff", foreground="#263746", anchor="nw", justify="left").pack(anchor="w", fill="both", expand=True)
+
+
+def build_conversations_card() -> None:
+    """Build a compact master-detail project conversation register."""
+    surface = widgets["cockpit-surface"]
+    card = tk.Frame(surface, background="#ffffff", highlightbackground="#c7d2df", highlightthickness=1, padx=10, pady=10)
+    card.grid(row=1, column=0, sticky="nsew", padx=5, pady=5)
+    card.columnconfigure(0, weight=2)
+    card.columnconfigure(1, weight=3)
+    card.rowconfigure(2, weight=0)
+    tk.Label(card, text="CONVERSATIONS", background="#ffffff", foreground="#173b62", font=("TkDefaultFont", 12, "bold")).grid(row=0, column=0, sticky="w")
+    tk.Label(card, text="conversations with LLMs", background="#ffffff", foreground="#667789", font=("TkDefaultFont", 9)).grid(row=1, column=0, sticky="w", pady=(1, 6))
+
+    list_panel = tk.Frame(card, background="#ffffff")
+    list_panel.grid(row=2, column=0, sticky="nsew", padx=(0, 8))
+    list_panel.columnconfigure(0, weight=1)
+    list_panel.rowconfigure(0, weight=1)
+    tree = ttk.Treeview(list_panel, columns=("title",), show="", selectmode="browse", height=5)
+    tree.column("title", width=165, stretch=True)
+    tree.grid(row=0, column=0, sticky="nsew")
+    tree.bind("<<TreeviewSelect>>", handle_when_user_selects_conversation)
+    ttk.Button(list_panel, text="New Conversation", command=handle_when_user_creates_conversation).grid(row=1, column=0, sticky="w", pady=(6, 0))
+
+    editor = tk.Frame(card, background="#ffffff")
+    editor.grid(row=0, column=1, rowspan=3, sticky="nsew")
+    editor.columnconfigure(1, weight=1)
+    editor.columnconfigure(2, weight=0)
+    date_entry = build_conversation_entry(editor, "Date", 0)
+    title_entry = build_conversation_entry(editor, "Title", 1)
+    url_entry = build_conversation_entry(editor, "URL", 2)
+    ttk.Button(editor, text="Open", width=5, command=handle_when_user_opens_conversation_url).grid(row=2, column=2, padx=(6, 0))
+    hook_entry = build_conversation_entry(editor, "Hook", 3)
+    title_entry.grid_configure(columnspan=2)
+    hook_entry.grid_configure(columnspan=2)
+    description = tk.Label(editor, text="", background="#f2f5f8", foreground="#263746", cursor="hand2", justify="left", anchor="nw", wraplength=330, padx=6, pady=5)
+    description.grid(row=4, column=0, columnspan=3, sticky="ew", pady=(7, 0))
+    description.bind("<Double-Button-1>", handle_when_user_double_clicks_conversation_description)
+    ttk.Button(editor, text="Save", width=4, command=handle_when_user_saves_conversation_to_memory).grid(row=5, column=2, sticky="e", pady=(6, 0))
+    for entry in [date_entry, title_entry, url_entry, hook_entry]:
+        entry.bind("<KeyRelease>", handle_when_conversation_editor_changes)
+    widgets["conversation-tree"] = tree
+    widgets["conversation-date"] = date_entry
+    widgets["conversation-title"] = title_entry
+    widgets["conversation-url"] = url_entry
+    widgets["conversation-hook"] = hook_entry
+    widgets["conversation-description"] = description
+    description_editor.set_description_save_handler(save_conversation_description_from_dialog)
+
+
+def build_conversation_entry(parent: tk.Frame, label: str, row: int) -> ttk.Entry:
+    """Create one compact labeled conversation entry field."""
+    ttk.Label(parent, text=label).grid(row=row, column=0, sticky="w", padx=(0, 6), pady=2)
+    entry = ttk.Entry(parent)
+    entry.grid(row=row, column=1, sticky="ew", pady=2)
+    return entry
+
+
+def load_conversation_register() -> None:
+    """Load the preserved conversation document into the master-detail register."""
+    g["conversations-document"] = load_conversations(g["project-root"])
+    g["selected-conversation-id"] = None
+    g["conversation-editor-dirty"] = False
+    g["conversations-dirty"] = False
+    rebuild_conversation_tree()
+    select_topmost_conversation()
+
+
+def rebuild_conversation_tree() -> None:
+    """Project conversations newest-first while preserving the current selection."""
+    tree = widgets["conversation-tree"]
+    tree.delete(*tree.get_children())
+    items = sorted(g["conversations-document"]["items"], key=get_conversation_sort_key, reverse=True)
+    for item in items:
+        tree.insert("", "end", iid=item["id"], values=(get_conversation_label(item),))
+    selected_id = g["selected-conversation-id"]
+    if selected_id and tree.exists(selected_id):
+        tree.selection_set(selected_id)
+        tree.focus(selected_id)
+
+
+def select_topmost_conversation() -> None:
+    """Select the newest visible conversation when the register first opens."""
+    tree = widgets["conversation-tree"]
+    conversation_ids = tree.get_children()
+    if not conversation_ids:
+        clear_conversation_editor()
+        return
+    g["selected-conversation-id"] = conversation_ids[0]
+    tree.selection_set(conversation_ids[0])
+    tree.focus(conversation_ids[0])
+    load_selected_conversation_into_editor()
+
+
+def get_conversation_sort_key(item: dict) -> str:
+    """Use ISO dates for a simple newest-first lifeline order."""
+    return str(item.get("date") or "")
+
+
+def get_conversation_label(item: dict) -> str:
+    """Give each conversation a useful single-column label."""
+    if str(item.get("title") or "").strip():
+        return item["title"]
+    if str(item.get("date") or "").strip():
+        return item["date"]
+    return "Untitled conversation"
+
+
+def handle_when_user_selects_conversation(event: tk.Event) -> None:
+    """Commit the outgoing RAM edit before loading the newly selected conversation."""
+    selected = widgets["conversation-tree"].selection()
+    if not selected or selected[0] == g["selected-conversation-id"]:
+        return
+    save_conversation_editor_to_memory()
+    g["selected-conversation-id"] = selected[0]
+    load_selected_conversation_into_editor()
+
+
+def load_selected_conversation_into_editor() -> None:
+    """Overwrite the detail pane with the selected conversation's preserved fields."""
+    item = get_selected_conversation()
+    if item is None:
+        clear_conversation_editor()
+        return
+    set_conversation_entry("conversation-date", item.get("date", ""))
+    set_conversation_entry("conversation-title", item.get("title", ""))
+    set_conversation_entry("conversation-url", item.get("url", ""))
+    set_conversation_entry("conversation-hook", item.get("hook", ""))
+    widgets["conversation-description"].configure(text=item.get("description", ""))
+    g["conversation-editor-dirty"] = False
+
+
+def clear_conversation_editor() -> None:
+    """Clear the detail controls when no conversation is selected."""
+    for key in ["conversation-date", "conversation-title", "conversation-url", "conversation-hook"]:
+        set_conversation_entry(key, "")
+    widgets["conversation-description"].configure(text="")
+    g["conversation-editor-dirty"] = False
+
+
+def set_conversation_entry(key: str, value: object) -> None:
+    """Replace one single-line editor value without changing its meaning."""
+    entry = widgets[key]
+    entry.delete(0, tk.END)
+    entry.insert(0, str(value))
+
+
+def get_selected_conversation() -> dict | None:
+    """Find the selected conversation in the preserved document."""
+    selected_id = g["selected-conversation-id"]
+    for item in g["conversations-document"]["items"]:
+        if item.get("id") == selected_id:
+            return item
+    return None
+
+
+def handle_when_conversation_editor_changes(event: tk.Event) -> None:
+    """Mark a detail-pane edit as RAM-dirty without writing it to disk yet."""
+    if g["selected-conversation-id"] is not None:
+        g["conversation-editor-dirty"] = True
+        g["conversations-dirty"] = True
+        g["is-dirty"] = True
+        project_window_title()
+
+
+def handle_when_user_saves_conversation_to_memory() -> None:
+    """Commit the editor controls into the in-memory conversation document."""
+    if save_conversation_editor_to_memory():
+        g["status"] = "Conversation saved in memory."
+        project_status()
+
+
+def save_conversation_editor_to_memory() -> bool:
+    """Merge current editor fields into the selected item, preserving unfamiliar fields."""
+    item = get_selected_conversation()
+    if item is None or not g["conversation-editor-dirty"]:
+        return False
+    item["date"] = widgets["conversation-date"].get()
+    item["title"] = widgets["conversation-title"].get()
+    item["url"] = widgets["conversation-url"].get()
+    item["hook"] = widgets["conversation-hook"].get()
+    g["conversation-editor-dirty"] = False
+    g["conversations-dirty"] = True
+    g["is-dirty"] = True
+    rebuild_conversation_tree()
+    project_window_title()
+    return True
+
+
+def handle_when_user_creates_conversation() -> None:
+    """Create one immediately selected, RAM-only conversation entry."""
+    save_conversation_editor_to_memory()
+    item = {
+        "id": str(uuid.uuid4()),
+        "date": date.today().isoformat(),
+        "title": "",
+        "url": "",
+        "hook": "",
+        "description": "",
+    }
+    g["conversations-document"]["items"].append(item)
+    g["selected-conversation-id"] = item["id"]
+    g["conversations-dirty"] = True
+    g["is-dirty"] = True
+    rebuild_conversation_tree()
+    load_selected_conversation_into_editor()
+    widgets["conversation-title"].focus_set()
+    project_window_title()
+    g["status"] = "New conversation created in memory."
+    project_status()
+
+
+def handle_when_user_opens_conversation_url() -> None:
+    """Open the selected conversation's URL with the system default browser."""
+    url = widgets["conversation-url"].get().strip()
+    if url:
+        webbrowser.open(url)
+        g["status"] = "Conversation URL opened."
+    else:
+        g["status"] = "This conversation has no URL yet."
+    project_status()
+
+
+def handle_when_user_double_clicks_conversation_description(event: tk.Event) -> None:
+    """Open the selected conversation's multiline description in its own small window."""
+    item = get_selected_conversation()
+    if item is None:
+        return
+    description_editor.open_description_editor({
+        "parent": widgets["window"],
+        "date": item.get("date") or "Undated conversation",
+        "title": item.get("title") or "Untitled conversation",
+        "description": item.get("description", ""),
+    })
+
+
+def save_conversation_description_from_dialog(text: str) -> None:
+    """Accept a dialog-confirmed description into RAM while preserving other fields."""
+    item = get_selected_conversation()
+    if item is None:
+        return
+    item["description"] = text
+    widgets["conversation-description"].configure(text=text)
+    g["conversations-dirty"] = True
+    g["is-dirty"] = True
+    project_window_title()
+    g["status"] = "Conversation description saved in memory."
+    project_status()
 
 
 def build_whiteboard_card() -> None:
@@ -121,7 +389,7 @@ def build_whiteboard_card() -> None:
     controls.grid(row=0, column=1, rowspan=2, sticky="e")
     ttk.Button(controls, text="Snapshot", command=handle_when_user_saves_snapshot).grid(row=0, column=0)
 
-    editor = tk.Text(card, wrap="word", undo=True, font=("TkFixedFont", 11), padx=10, pady=10, relief="solid", borderwidth=1)
+    editor = tk.Text(card, wrap="word", undo=True, height=7, font=("TkFixedFont", 11), padx=10, pady=10, relief="solid", borderwidth=1)
     editor.grid(row=2, column=0, sticky="nsew", padx=(0, 10))
     editor.bind("<<Modified>>", handle_when_whiteboard_text_changes)
     widgets["whiteboard-editor"] = editor
@@ -129,7 +397,7 @@ def build_whiteboard_card() -> None:
     history = tk.Frame(card, background="#f2f5f8", padx=6, pady=8, width=52)
     history.grid(row=2, column=1, sticky="ns")
     history.grid_propagate(False)
-    scale = tk.Scale(history, from_=0, to=0, orient="vertical", resolution=1, showvalue=False, length=245, command=handle_when_snapshot_scale_changes, background="#f2f5f8", highlightthickness=0)
+    scale = tk.Scale(history, from_=0, to=0, orient="vertical", resolution=1, showvalue=False, length=145, command=handle_when_snapshot_scale_changes, background="#f2f5f8", highlightthickness=0)
     scale.pack(anchor="center", fill="y", expand=True)
     widgets["snapshot-scale"] = scale
 
@@ -153,15 +421,19 @@ def refresh_cockpit_for_bound_project() -> None:
     identity = snapshot["identity"]
     root = g["project-root"]
     name = identity.get("name") or root.name
+    g["project-name"] = name
+    g["project-guid"] = str(identity.get("zookeep-project-guid") or "")
     hook = read_project_hook(root, identity)
-    widgets["window"].title(f"PyDeck 26: {name}")
+    project_window_title()
     widgets["title"].configure(text=f"PyDeck 26: {name}")
     widgets["hook"].configure(text=hook or "No project hook has been recorded yet.")
     widgets["project-root-path"].configure(text=str(root))
+    widgets["project-guid"].configure(text=f"(zookeep ID: {g['project-guid']})" if g["project-guid"] else "")
     if is_initialized(root):
         widgets["initialization-panel"].grid_remove()
-        load_current_whiteboard()
+        load_current_whiteboard_from_disk()
         refresh_snapshot_navigation()
+        load_conversation_register()
         g["status"] = "Current"
     else:
         show_initialization_state()
@@ -199,18 +471,26 @@ def handle_when_user_initializes_project() -> None:
     initialize_project(g["project-root"])
     widgets["initialization-panel"].grid_remove()
     widgets["snapshot-scale"].configure(state="normal")
-    load_current_whiteboard()
+    load_current_whiteboard_from_disk()
     refresh_snapshot_navigation()
+    load_conversation_register()
     g["status"] = "Current"
     project_status()
 
 
-def load_current_whiteboard() -> None:
-    """Display the mutable current Whiteboard in editable form."""
+def load_current_whiteboard_from_disk() -> None:
+    """Load saved current text once, then display it as the active present."""
     g["current-text"] = load_whiteboard(g["project-root"])
+    g["is-dirty"] = False
+    show_current_whiteboard()
+
+
+def show_current_whiteboard() -> None:
+    """Display in-memory current text without discarding unsaved edits."""
     set_editor_text(g["current-text"])
     widgets["whiteboard-editor"].configure(state="normal")
     g["view-index"] = 0
+    project_window_title()
 
 
 def refresh_snapshot_navigation() -> None:
@@ -232,7 +512,7 @@ def handle_when_snapshot_scale_changes(value: str) -> None:
     if index == g["view-index"]:
         return
     if index == 0:
-        load_current_whiteboard()
+        show_current_whiteboard()
         g["status"] = "Current"
     else:
         show_history_item(index)
@@ -271,8 +551,30 @@ def handle_when_user_saves_snapshot() -> None:
     project_status()
 
 
+def handle_when_user_uses_project_save_shortcut(event: tk.Event) -> str:
+    """Save all current PyDeck project state, regardless of the focused widget."""
+    save_all_current_project_state()
+    return "break"
+
+
+def save_all_current_project_state() -> None:
+    """Persist every mutable cockpit region that exists in this implementation."""
+    if not is_initialized(g["project-root"]):
+        g["status"] = "Initialize PyDeck 26 before saving project state."
+    else:
+        save_conversation_editor_to_memory()
+        save_whiteboard(g["project-root"], g["current-text"])
+        if g["conversations-dirty"]:
+            save_conversations(g["project-root"], g["conversations-document"])
+            g["conversations-dirty"] = False
+        g["is-dirty"] = False
+        project_window_title()
+        g["status"] = "Project state saved."
+    project_status()
+
+
 def handle_when_whiteboard_text_changes(event: tk.Event) -> None:
-    """Auto-save edits and promote recalled history into a new current Whiteboard."""
+    """Mark edits dirty and promote recalled history into a new current Whiteboard."""
     editor = widgets["whiteboard-editor"]
     if g["suppress-editor-events"] or not editor.edit_modified():
         return
@@ -289,7 +591,8 @@ def handle_when_whiteboard_text_changes(event: tk.Event) -> None:
         refresh_snapshot_navigation()
     else:
         g["current-text"] = new_text
-    save_whiteboard(g["project-root"], g["current-text"])
+    g["is-dirty"] = True
+    project_window_title()
     g["status"] = "Current"
     project_status()
 
@@ -297,6 +600,21 @@ def handle_when_whiteboard_text_changes(event: tk.Event) -> None:
 def handle_when_user_clicks_project_root_path(event: tk.Event) -> None:
     """Open the bound project root in Windows Explorer."""
     os.startfile(g["project-root"])
+
+
+def handle_when_user_clicks_project_title(event: tk.Event) -> None:
+    """Copy the displayed masthead title for use in other project tools."""
+    copy_text_to_clipboard(widgets["title"].cget("text"))
+    g["status"] = "Project title copied to clipboard."
+    project_status()
+
+
+def handle_when_user_clicks_project_guid(event: tk.Event) -> None:
+    """Copy the Zoo project-folder GUID without exposing a noisy control."""
+    if g["project-guid"]:
+        copy_text_to_clipboard(g["project-guid"])
+        g["status"] = "Zoo project GUID copied to clipboard."
+        project_status()
 
 
 def handle_when_lionscliapp_forwards_message(message: dict) -> None:
@@ -307,6 +625,7 @@ def handle_when_lionscliapp_forwards_message(message: dict) -> None:
 
 def handle_when_user_closes_main_cockpit() -> None:
     """End the Tk runtime when its cockpit window closes."""
+    save_all_current_project_state()
     widgets["window"].master.destroy()
 
 
@@ -326,6 +645,20 @@ def get_editor_text() -> str:
     return widgets["whiteboard-editor"].get("1.0", "end-1c")
 
 
+def copy_text_to_clipboard(text: str) -> None:
+    """Put ordinary text on the Windows clipboard for immediate pasting."""
+    window = widgets["window"]
+    window.clipboard_clear()
+    window.clipboard_append(text)
+    window.update()
+
+
 def project_status() -> None:
     """Project the current runtime status message."""
     widgets["status"].configure(text=g["status"])
+
+
+def project_window_title() -> None:
+    """Put a small dirty marker in the native title bar when project state changed."""
+    dirty = "[*] " if g["is-dirty"] else ""
+    widgets["window"].title(f"{dirty}PyDeck 26: {g['project-name']}")
