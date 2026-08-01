@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import json
 import os
+import re
 import uuid
 import webbrowser
 from datetime import date, datetime
@@ -23,9 +23,11 @@ from pydeck26.storage import (
     list_snapshots,
     load_whiteboard,
     load_conversations,
+    load_dictionary_entry,
     read_snapshot,
     save_snapshot,
     save_conversations,
+    save_dictionary_entry,
     save_whiteboard,
 )
 
@@ -38,6 +40,9 @@ g = {
     "history-items": [],
     "view-index": 0,
     "is-dirty": False,
+    "whiteboard-dirty": False,
+    "dictionary-document": {},
+    "dictionary-dirty": False,
     "conversations-document": {"items": []},
     "selected-conversation-id": None,
     "conversation-editor-dirty": False,
@@ -112,7 +117,7 @@ def build_cockpit_surface(window: tk.Toplevel) -> None:
     surface.rowconfigure(2, weight=0)
     widgets["cockpit-surface"] = surface
     build_inactive_card({"title": "STRUCTURE", "hint": "folders, packages, paths, jumpers", "row": 0, "column": 0})
-    build_inactive_card({"title": "DICTIONARY", "hint": "project identity, editable entry", "row": 0, "column": 1})
+    build_dictionary_card()
     build_conversations_card()
     build_inactive_card({"title": "RESOURCES / JUMPERS", "hint": "tools, documents, and useful places", "row": 1, "column": 1})
     build_whiteboard_card()
@@ -126,6 +131,35 @@ def build_inactive_card(card_spec: dict) -> None:
     tk.Label(card, text=card_spec["title"], background="#ffffff", foreground="#173b62", font=("TkDefaultFont", 12, "bold")).pack(anchor="w")
     tk.Label(card, text=card_spec["hint"], background="#ffffff", foreground="#667789", font=("TkDefaultFont", 9)).pack(anchor="w", pady=(1, 10))
     tk.Label(card, text="This room is being held open for the project.", background="#ffffff", foreground="#263746", anchor="nw", justify="left").pack(anchor="w", fill="both", expand=True)
+
+
+def build_dictionary_card() -> None:
+    """Build the compact editable identity surface for the current project dictionary."""
+    surface = widgets["cockpit-surface"]
+    card = tk.Frame(surface, background="#ffffff", highlightbackground="#c7d2df", highlightthickness=1, padx=10, pady=10)
+    card.grid(row=0, column=1, sticky="nsew", padx=5, pady=5)
+    card.columnconfigure(1, weight=1)
+    tk.Label(card, text="DICTIONARY", background="#ffffff", foreground="#173b62", font=("TkDefaultFont", 12, "bold")).grid(row=0, column=0, columnspan=2, sticky="w")
+    name = build_dictionary_entry(card, "Name", 1)
+    title = build_dictionary_entry(card, "Title", 2)
+    tags = build_dictionary_entry(card, "Tags", 3)
+    hook = build_dictionary_entry(card, "Hook", 4)
+    ttk.Button(card, text="Save", width=4, command=handle_when_user_saves_dictionary).grid(row=5, column=0, sticky="w", pady=(6, 0))
+    ttk.Button(card, text="Open Full Entry", command=handle_when_user_opens_full_dictionary_entry).grid(row=5, column=1, sticky="e", pady=(6, 0))
+    for entry in [name, title, tags, hook]:
+        entry.bind("<KeyRelease>", handle_when_dictionary_editor_changes)
+    widgets["dictionary-name"] = name
+    widgets["dictionary-title"] = title
+    widgets["dictionary-tags"] = tags
+    widgets["dictionary-hook"] = hook
+
+
+def build_dictionary_entry(parent: tk.Frame, label: str, row: int) -> ttk.Entry:
+    """Create one dense key-and-value dictionary row."""
+    ttk.Label(parent, text=label, width=7).grid(row=row, column=0, sticky="w", padx=(0, 6), pady=2)
+    entry = ttk.Entry(parent)
+    entry.grid(row=row, column=1, sticky="ew", pady=2)
+    return entry
 
 
 def build_conversations_card() -> None:
@@ -420,12 +454,15 @@ def refresh_cockpit_for_bound_project() -> None:
     snapshot = g["snapshot"]
     identity = snapshot["identity"]
     root = g["project-root"]
-    name = identity.get("name") or root.name
-    g["project-name"] = name
+    load_dictionary_entry_for_project()
+    dictionary_identity = g["dictionary-document"]["identity"]
+    name = dictionary_identity.get("name") or identity.get("name") or root.name
+    title = dictionary_identity.get("title") or name
+    g["project-name"] = title
     g["project-guid"] = str(identity.get("zookeep-project-guid") or "")
-    hook = read_project_hook(root, identity)
+    hook = dictionary_identity.get("hook", "")
     project_window_title()
-    widgets["title"].configure(text=f"PyDeck 26: {name}")
+    widgets["title"].configure(text=f"PyDeck 26: {title}")
     widgets["hook"].configure(text=hook or "No project hook has been recorded yet.")
     widgets["project-root-path"].configure(text=str(root))
     widgets["project-guid"].configure(text=f"(zookeep ID: {g['project-guid']})" if g["project-guid"] else "")
@@ -440,20 +477,108 @@ def refresh_cockpit_for_bound_project() -> None:
     project_status()
 
 
-def read_project_hook(root: Path, identity: dict) -> str:
-    """Find a project hook when the local project dictionary exposes one."""
-    if isinstance(identity.get("hook"), str):
-        return identity["hook"]
-    for path in [root / "db" / "project-dictionary.json", root / "db" / "dictionary.json"]:
-        if not path.is_file():
-            continue
-        try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            continue
-        if isinstance(data.get("hook"), str):
-            return data["hook"]
-    return ""
+def load_dictionary_entry_for_project() -> None:
+    """Load a preserved dictionary entry or create a RAM-only starter identity."""
+    document = load_dictionary_entry(g["project-root"])
+    if document is None:
+        document = make_dictionary_starter_entry()
+    identity = document.get("identity")
+    if not isinstance(identity, dict):
+        identity = {}
+        document["identity"] = identity
+    snapshot_identity = g["snapshot"]["identity"]
+    default_name = snapshot_identity.get("name") or g["project-root"].name
+    document.setdefault("id", default_name)
+    identity.setdefault("name", default_name)
+    identity.setdefault("title", make_dictionary_display_title(identity["name"]))
+    identity.setdefault("tags", [])
+    identity.setdefault("hook", "")
+    g["dictionary-document"] = document
+    g["dictionary-dirty"] = False
+    populate_dictionary_editor()
+
+
+def make_dictionary_starter_entry() -> dict:
+    """Make a useful unsaved dictionary starter from existing project identity."""
+    identity = g["snapshot"]["identity"]
+    name = identity.get("name") or g["project-root"].name
+    return {
+        "id": name,
+        "identity": {
+            "name": name,
+            "title": make_dictionary_display_title(name),
+            "tags": [],
+            "hook": "",
+        },
+    }
+
+
+def make_dictionary_display_title(name: str) -> str:
+    """Turn a compact project identifier into a small human-facing fallback title."""
+    return re.sub(r"(?<=\D)(?=\d)", " ", name.replace("-", " ").replace("_", " ")).title()
+
+
+def populate_dictionary_editor() -> None:
+    """Project the four compact editable dictionary fields into the cockpit pane."""
+    identity = g["dictionary-document"]["identity"]
+    set_dictionary_entry("dictionary-name", identity.get("name", ""))
+    set_dictionary_entry("dictionary-title", identity.get("title", ""))
+    tags = identity.get("tags", [])
+    if not isinstance(tags, list):
+        tags = []
+    set_dictionary_entry("dictionary-tags", " ".join(str(tag) for tag in tags))
+    set_dictionary_entry("dictionary-hook", identity.get("hook", ""))
+
+
+def set_dictionary_entry(key: str, value: object) -> None:
+    """Replace one compact dictionary single-line value."""
+    entry = widgets[key]
+    entry.delete(0, tk.END)
+    entry.insert(0, str(value))
+
+
+def handle_when_dictionary_editor_changes(event: tk.Event) -> None:
+    """Mark compact dictionary changes dirty until an explicit project save."""
+    g["dictionary-dirty"] = True
+    g["is-dirty"] = True
+    project_window_title()
+
+
+def handle_when_user_saves_dictionary() -> None:
+    """Write the compact dictionary fields and update the masthead immediately."""
+    save_dictionary_editor_to_disk()
+    g["status"] = "Dictionary entry saved."
+    project_status()
+
+
+def save_dictionary_editor_to_disk() -> None:
+    """Update only compact identity fields while preserving the rest of the entry."""
+    identity = g["dictionary-document"]["identity"]
+    identity["name"] = widgets["dictionary-name"].get()
+    identity["title"] = widgets["dictionary-title"].get()
+    identity["tags"] = widgets["dictionary-tags"].get().split()
+    identity["hook"] = widgets["dictionary-hook"].get()
+    save_dictionary_entry(g["project-root"], g["dictionary-document"])
+    g["dictionary-dirty"] = False
+    refresh_masthead_from_dictionary()
+    project_window_title()
+
+
+def refresh_masthead_from_dictionary() -> None:
+    """Update the persistent orientation masthead from the current dictionary identity."""
+    identity = g["dictionary-document"]["identity"]
+    name = identity.get("name") or g["snapshot"]["identity"].get("name") or g["project-root"].name
+    title = identity.get("title") or name
+    g["project-name"] = title
+    widgets["title"].configure(text=f"PyDeck 26: {title}")
+    widgets["hook"].configure(text=identity.get("hook") or "No project hook has been recorded yet.")
+
+
+def handle_when_user_opens_full_dictionary_entry() -> None:
+    """Open the deliberately modest placeholder for the later expanded dictionary editor."""
+    window = tk.Toplevel(widgets["window"])
+    window.title("PyDeck 26: Full Dictionary Entry")
+    tk.Label(window, text="The full structured dictionary editor is not implemented yet.", padx=20, pady=20).pack()
 
 
 def show_initialization_state() -> None:
@@ -482,6 +607,7 @@ def load_current_whiteboard_from_disk() -> None:
     """Load saved current text once, then display it as the active present."""
     g["current-text"] = load_whiteboard(g["project-root"])
     g["is-dirty"] = False
+    g["whiteboard-dirty"] = False
     show_current_whiteboard()
 
 
@@ -564,10 +690,13 @@ def save_all_current_project_state() -> None:
     else:
         save_conversation_editor_to_memory()
         save_whiteboard(g["project-root"], g["current-text"])
+        if g["dictionary-dirty"]:
+            save_dictionary_editor_to_disk()
         if g["conversations-dirty"]:
             save_conversations(g["project-root"], g["conversations-document"])
             g["conversations-dirty"] = False
         g["is-dirty"] = False
+        g["whiteboard-dirty"] = False
         project_window_title()
         g["status"] = "Project state saved."
     project_status()
@@ -592,6 +721,7 @@ def handle_when_whiteboard_text_changes(event: tk.Event) -> None:
     else:
         g["current-text"] = new_text
     g["is-dirty"] = True
+    g["whiteboard-dirty"] = True
     project_window_title()
     g["status"] = "Current"
     project_status()
@@ -660,5 +790,6 @@ def project_status() -> None:
 
 def project_window_title() -> None:
     """Put a small dirty marker in the native title bar when project state changed."""
-    dirty = "[*] " if g["is-dirty"] else ""
+    is_dirty = g["whiteboard-dirty"] or g["conversations-dirty"] or g["dictionary-dirty"]
+    dirty = "[*] " if is_dirty else ""
     widgets["window"].title(f"{dirty}PyDeck 26: {g['project-name']}")

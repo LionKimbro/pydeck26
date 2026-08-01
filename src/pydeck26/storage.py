@@ -52,6 +52,28 @@ def get_conversations_path(root: Path) -> Path:
     return get_pydeck_data_dir(root) / "conversations.json"
 
 
+def get_dictionary_entry_path(root: Path) -> Path:
+    """Return the optional project dictionary entry path."""
+    return get_pydeck_data_dir(root) / "dictionary-entry.json"
+
+
+def load_dictionary_entry(root: Path) -> dict | None:
+    """Read the optional dictionary entry without creating a starter file."""
+    path = get_dictionary_entry_path(root)
+    if not path.is_file():
+        return None
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise ValueError("dictionary-entry.json must contain a JSON object")
+    return data
+
+
+def save_dictionary_entry(root: Path, document: dict) -> None:
+    """Persist the complete dictionary entry, preserving its unknown fields."""
+    content = json.dumps(document, indent=2, ensure_ascii=False)
+    write_text_atomic(get_dictionary_entry_path(root), f"{content}\n")
+
+
 def load_conversations(root: Path) -> dict:
     """Read the conversation register while tolerating its absence before initialization."""
     path = get_conversations_path(root)

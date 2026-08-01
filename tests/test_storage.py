@@ -4,6 +4,7 @@ import pytest
 
 from pydeck26.storage import (
     get_conversations_path,
+    get_dictionary_entry_path,
     get_snapshot_dir,
     get_whiteboard_path,
     initialize_project,
@@ -11,6 +12,7 @@ from pydeck26.storage import (
     load_whiteboard,
     save_snapshot,
     save_conversations,
+    save_dictionary_entry,
     save_whiteboard,
 )
 
@@ -32,6 +34,17 @@ def test_save_conversations_preserves_unfamiliar_fields(tmp_path: Path) -> None:
 
     assert '"future-field"' in get_conversations_path(tmp_path).read_text(encoding="utf-8")
     assert '"custom": "keep"' in get_conversations_path(tmp_path).read_text(encoding="utf-8")
+
+
+def test_dictionary_entry_is_optional_until_explicitly_saved(tmp_path: Path) -> None:
+    initialize_project(tmp_path)
+
+    assert not get_dictionary_entry_path(tmp_path).exists()
+
+    save_dictionary_entry(tmp_path, {"identity": {"title": "A title"}, "extension": "keep"})
+
+    text = get_dictionary_entry_path(tmp_path).read_text(encoding="utf-8")
+    assert '"extension": "keep"' in text
 
 
 def test_initialize_project_does_not_overwrite_existing_whiteboard(tmp_path: Path) -> None:

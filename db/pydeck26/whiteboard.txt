@@ -1,6 +1,7 @@
 Panes to add:
 * Future Ideas: Future Ideas
 * Git Changes
-* Dictionary
+* Dictionary  ---> OK, we're going to link this to the Zoo project, NOT to the Zoo Project, though there's going to be an edit for that in the full pane view., too -- so: review/edit the Project, and review/edit the Repo Project
 * (structure)
 * (resources/jumpers)
+Last work: 2026-08-01, Saturday, 4:00am -- current trajectory: working on getting the dictionary pane right
