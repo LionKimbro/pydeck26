@@ -144,7 +144,6 @@ def build_dictionary_card() -> None:
     title = build_dictionary_entry(card, "Title", 2)
     tags = build_dictionary_entry(card, "Tags", 3)
     hook = build_dictionary_entry(card, "Hook", 4)
-    ttk.Button(card, text="Save", width=4, command=handle_when_user_saves_dictionary).grid(row=5, column=0, sticky="w", pady=(6, 0))
     ttk.Button(card, text="Open Full Entry", command=handle_when_user_opens_full_dictionary_entry).grid(row=5, column=1, sticky="e", pady=(6, 0))
     for entry in [name, title, tags, hook]:
         entry.bind("<KeyRelease>", handle_when_dictionary_editor_changes)
@@ -539,29 +538,29 @@ def set_dictionary_entry(key: str, value: object) -> None:
 
 def handle_when_dictionary_editor_changes(event: tk.Event) -> None:
     """Mark compact dictionary changes dirty until an explicit project save."""
+    update_compact_dictionary_fields_from_editor()
     g["dictionary-dirty"] = True
     g["is-dirty"] = True
+    refresh_masthead_from_dictionary()
     project_window_title()
-
-
-def handle_when_user_saves_dictionary() -> None:
-    """Write the compact dictionary fields and update the masthead immediately."""
-    save_dictionary_editor_to_disk()
-    g["status"] = "Dictionary entry saved."
-    project_status()
 
 
 def save_dictionary_editor_to_disk() -> None:
     """Update only compact identity fields while preserving the rest of the entry."""
+    update_compact_dictionary_fields_from_editor()
+    save_dictionary_entry(g["project-root"], g["dictionary-document"])
+    g["dictionary-dirty"] = False
+    refresh_masthead_from_dictionary()
+    project_window_title()
+
+
+def update_compact_dictionary_fields_from_editor() -> None:
+    """Copy the four compact controls into the in-memory dictionary entry."""
     identity = g["dictionary-document"]["identity"]
     identity["name"] = widgets["dictionary-name"].get()
     identity["title"] = widgets["dictionary-title"].get()
     identity["tags"] = widgets["dictionary-tags"].get().split()
     identity["hook"] = widgets["dictionary-hook"].get()
-    save_dictionary_entry(g["project-root"], g["dictionary-document"])
-    g["dictionary-dirty"] = False
-    refresh_masthead_from_dictionary()
-    project_window_title()
 
 
 def refresh_masthead_from_dictionary() -> None:
