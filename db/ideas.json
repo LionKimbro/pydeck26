@@ -60,6 +60,57 @@
       "notes": "ex:\n\ndocs/raw/: 27 documents\ndocs/ subdirectories: raw, code, architecture\ndb/: present, 6 files, 2 subdirectories\nsrc/ packages: pydeck26, support_tools\ntests: 18 files",
       "tags": [],
       "pinned": true
+    },
+    {
+      "guid": "26e0b3b2-5d1c-446e-9044-3a69035d0aaf",
+      "title": "Agentic Work Queue",
+      "description": "List work ideas for Agentic AI to pick up and work on automatically.",
+      "status": "conceived",
+      "date-conceived": "somewhere in 2026-07",
+      "date-entered": "2026-08-02",
+      "notes": "",
+      "tags": [
+        "agenticai",
+        "coding",
+        "aidevelopment",
+        "aiassist",
+        "programming",
+        "project",
+        "automaticai"
+      ],
+      "pinned": true
+    },
+    {
+      "guid": "6342e81a-80c4-4833-a815-fe5bb27fb45f",
+      "title": "Spark Link",
+      "description": "Add (spark ID: <guid>) to link back to the spark that inspired this project.",
+      "status": "conceived",
+      "date-conceived": "2026-08-02",
+      "date-entered": "2026-08-02",
+      "notes": "Question:\n  How is that information entered?",
+      "tags": [
+        "spark",
+        "project",
+        "projects"
+      ],
+      "pinned": true
+    },
+    {
+      "guid": "821ce980-36f3-4355-934d-2e1c1eb780d5",
+      "title": "Bugs Listing",
+      "description": "a place to enter bugs that are known, and highlight the most important or most annoying bugs",
+      "status": "conceived",
+      "date-conceived": "2026-08-02",
+      "date-entered": "2026-08-02",
+      "notes": "",
+      "tags": [
+        "bugs",
+        "bug",
+        "track",
+        "tracker",
+        "tracking"
+      ],
+      "pinned": false
     }
   ]
 }

@@ -1,4 +1,4 @@
-2026-08-02 10:21p
+2026-08-02 10:21p  -- ALSO, there's an annoying bug: the [*] that seems to be hyperactive
 
 Attention should likely next go to the Project system (the "zoo"), rather than PyDeck 2026 (and the "zookeep") project.
 I've got a lot here to support the git project directory;  Next I think I want to support the project registry in the abstract.
