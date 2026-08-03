@@ -1,0 +1,65 @@
+{
+  "items": [
+    {
+      "guid": "ae47c374-7423-4837-9587-6138d27fcd29",
+      "title": "Codex-assisted dictionary drafting",
+      "description": "Ask Codex to inspect the project and automatically propose or populate a dictionary entry, which you can then revise manually.",
+      "status": "conceived",
+      "date-conceived": "before 2026-08-02",
+      "date-entered": "2026-08-02",
+      "notes": "I'd need to give the AI examples to go by.\nIt'd likely be a Codex instance.",
+      "tags": [
+        "ideas",
+        "idea",
+        "ai",
+        "assistance",
+        "aiassist"
+      ],
+      "pinned": false
+    },
+    {
+      "guid": "5cbd1558-63ee-4911-8d57-055d6210bd3e",
+      "title": "Timeline",
+      "description": "Known or estimated timeline of project implementation.",
+      "status": "conceived",
+      "date-conceived": "2026-08-02",
+      "date-entered": "2026-08-02",
+      "notes": "",
+      "tags": [],
+      "pinned": true
+    },
+    {
+      "guid": "0ee7b614-7f3b-4063-8c8b-f914b8241159",
+      "title": "Git Changes and Commit Panel/Tab",
+      "description": "Review changed and untracked files, inspect diffs, stage or unstage files, enter a commit message, and commit from within PyDeck.",
+      "status": "conceived",
+      "date-conceived": "before 2026-08-02",
+      "date-entered": "2026-08-02",
+      "notes": "",
+      "tags": [],
+      "pinned": false
+    },
+    {
+      "guid": "347406cf-930f-47a1-9030-e11c7160e63e",
+      "title": "Functional Resources / Jumpers pane",
+      "description": "List useful folders and files, display their paths, and open them in Explorer—including a separate jumper for every package found beneath src/.",
+      "status": "conceived",
+      "date-conceived": "before 2026-08-02",
+      "date-entered": "2026-08-02",
+      "notes": "",
+      "tags": [],
+      "pinned": false
+    },
+    {
+      "guid": "110bd331-3672-4179-ab6f-e2aaee90f0a9",
+      "title": "Full-project structure Telemetry",
+      "description": "Automatically observed facts about a system's current conditions.",
+      "status": "conceived",
+      "date-conceived": "before 2026-08-02",
+      "date-entered": "2026-08-02",
+      "notes": "ex:\n\ndocs/raw/: 27 documents\ndocs/ subdirectories: raw, code, architecture\ndb/: present, 6 files, 2 subdirectories\nsrc/ packages: pydeck26, support_tools\ntests: 18 files",
+      "tags": [],
+      "pinned": true
+    }
+  ]
+}
