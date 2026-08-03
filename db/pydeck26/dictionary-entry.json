@@ -10,8 +10,109 @@
       "cockpit",
       "python",
       "projectmemory",
-      "tooling"
+      "tooling",
+      "conversations",
+      "conversation",
+      "dictionary",
+      "projectnavigation"
     ],
     "hook": "project cockpit for entering a project, seeing its shape, regaining the thread"
-  }
+  },
+  "entry-weight": "deep-orientation",
+  "origin": "Developed by Lion Kimbro with Wing-Cat and Codex in August 2026 during a fit of programming. It grew from the earlier ZooKeep vision and from Lion's python-2026-03 project structure, but became a distinct project focused on inhabiting and re-entering one project rather than managing repositories generally.",
+  "outline": [
+    "Runs from the root of a single project directory and remains bound to that project for the lifetime of the program.",
+    "Presents a broad cockpit view in which several aspects of the project remain visible at once.",
+    "Shows project identity through a persistent masthead containing the project title, short name, hook, and clickable project path.",
+    "Provides a persistent free-form Whiteboard for current thought, with disk snapshots and in-memory historical states.",
+    "Maintains a project-local register of important ChatGPT and AI conversations, including dates, titles, URLs, hooks, and descriptions.",
+    "Maintains a project dictionary entry through a compact identity editor and an expanded JSON editor for additional fields.",
+    "Provides structural orientation and direct jumpers to important directories, files, and source packages.",
+    "Is intended to gain additional cockpit regions such as a Feature Garden, project resources, and Git change review."
+  ],
+  "design-intent": [
+    "Help Lion rapidly regain orientation after being away from a project for days, months, or years.",
+    "Keep project identity, current thought, historical reasoning, future ideas, and structural facts visible together.",
+    "Reduce the cognitive cost of re-entering software work after interruption.",
+    "Preserve conversation history as a first-class part of project memory and provenance.",
+    "Provide immediate, low-friction places for provisional thought, project identity, and future feature ideas.",
+    "Make important project resources reachable through direct, visible filesystem jumpers.",
+    "Serve Lion's 2026 Python project ecology deeply rather than becoming a general compatibility framework for every future project structure."
+  ],
+  "core-concepts": {
+    "cockpit": "The broad summary surface that keeps several aspects of a project visible and mutually contextualized at once.",
+    "masthead": "The visually distinct top region showing the project title, short name, hook, and project-root path.",
+    "whiteboard": "A persistent plain-text working surface for loose intention, current thought, unresolved questions, and material not yet ready to become a task, feature, document, or decision.",
+    "whiteboard-snapshot": "A timestamped historical copy of the Whiteboard stored under docs/whiteboard.",
+    "virtual-snapshot": "An in-memory historical Whiteboard state created when the user begins editing from a recalled point without first committing that state to disk.",
+    "conversation-lifeline": "The project-local register of conversations that preserve reasoning, provenance, architectural development, and return paths.",
+    "dictionary-pane": "The compact cockpit editor for the project's name, title, tags, and hook.",
+    "full-dictionary-entry": "The expanded JSON editing surface for additional project dictionary fields beyond the compact basics.",
+    "feature-garden": "A planned area for storing possible features, experiments, priorities, implementation states, and things that may become part of the project.",
+    "resource-jumper": "A visible path and associated action that opens an important project directory, file, or source package in the operating system."
+  },
+  "design-principles": [
+    "The broad cockpit overview is primary; detailed work surfaces should not destroy the value of seeing multiple project dimensions together.",
+    "Run inside one project rather than acting as a general project browser.",
+    "Observe inexpensive filesystem facts directly rather than redundantly storing them.",
+    "Keep persistent project-owned data under db/pydeck26.",
+    "Use plain, inspectable formats such as JSON and text files.",
+    "Treat Ctrl+S as an application-wide save command rather than a Whiteboard-specific action.",
+    "Preserve unknown dictionary fields when editing the compact subset.",
+    "Do not write invalid JSON over the last valid dictionary entry.",
+    "Prefer useful, direct interfaces over premature abstraction or generalized plugin architecture.",
+    "Allow the assumptions of 2026 to remain explicit rather than forcing future project ecologies into the same program."
+  ],
+  "coordinates": {
+    "github": "https://github.com/LionKimbro/pydeck26",
+    "project-data-directory": "db/pydeck26",
+    "dictionary-entry": "db/pydeck26/dictionary-entry.json",
+    "whiteboard-current": "db/pydeck26/whiteboard.txt",
+    "whiteboard-snapshots": "docs/whiteboard",
+    "conversations": "db/pydeck26/conversations.json"
+  },
+  "constraints": [
+    "PyDeck 26 is launched from the project root and remains married to that project during execution.",
+    "It is not a project-selection or project-browsing application.",
+    "The compact Dictionary pane owns id and the basic identity fields; the expanded editor owns additional top-level JSON keys.",
+    "Invalid additional dictionary JSON must remain unsaved and must not damage the canonical dictionary-entry file.",
+    "Historical Whiteboard snapshots stored on disk are immutable.",
+    "Only the current Whiteboard may be explicitly snapshotted to disk.",
+    "Source-package discovery must allow multiple packages beneath src rather than assuming one repository contains exactly one package.",
+    "The program should not be burdened with supporting radically different future project architectures."
+  ],
+  "clarifications": [
+    "PyDeck 26 is not ZooKeep. ZooKeep handles broader project creation, repository setup, and GitHub publication concerns.",
+    "PyDeck 26 is not primarily a Git client, though Git review and commit support may become one cockpit surface.",
+    "PyDeck 26 is not a general project manager.",
+    "PyDeck 26 is not intended to evolve indefinitely into a universal project cockpit.",
+    "A future PyDeck 28 may embody substantially different assumptions and may be a sibling or successor rather than a backward-compatible version.",
+    "The Whiteboard is not a task list, feature tracker, or formal document.",
+    "The Feature Garden is not merely a backlog; it is intended to preserve possibilities and partially formed ideas.",
+    "The project dictionary entry is orientation material, not a complete specification of the software."
+  ],
+  "current-capabilities": [
+    "Resizable Tkinter cockpit window.",
+    "Persistent project masthead with title, name, hook, and clickable project path.",
+    "Persistent Whiteboard with current state, snapshots, and history navigation.",
+    "Conversation register with master-detail editing and browser-opening support.",
+    "Compact project Dictionary pane for name, title, whitespace-separated tags, and hook.",
+    "Expanded dictionary-entry JSON editor with clickable key reference, validation, formatting, clipboard support, and valid-only autosave.",
+    "Application status bar.",
+    "Application-wide Ctrl+S save behavior."
+  ],
+  "planned-capabilities": [
+    "Feature Garden with priority, implementation status, and editable feature details.",
+    "Resources and Jumpers panel with direct access to project folders, files, and all discovered source packages.",
+    "Structural project statistics such as raw-document counts, docs subdirectories, db contents, and source-package inventory.",
+    "Git change review, staging, commit-message entry, and commit operations.",
+    "Codex-assisted generation or revision of the project dictionary entry."
+  ],
+  "related-entries": [
+    "zookeep",
+    "lions-coding-standards",
+    "lions-document-format",
+    "softspec",
+    "command-deck-engineering"
+  ]
 }
