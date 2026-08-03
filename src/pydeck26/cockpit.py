@@ -16,6 +16,7 @@ from lionscliapp.execroot import get_execroot
 
 from pydeck26 import description_editor
 from pydeck26 import full_dictionary_editor
+from pydeck26 import ideas
 from pydeck26.project_snapshot import read_project_snapshot
 from pydeck26.storage import (
     format_snapshot_time,
@@ -25,10 +26,12 @@ from pydeck26.storage import (
     load_whiteboard,
     load_conversations,
     load_dictionary_entry,
+    load_ideas,
     read_snapshot,
     save_snapshot,
     save_conversations,
     save_dictionary_entry,
+    save_ideas,
     save_whiteboard,
 )
 
@@ -48,6 +51,8 @@ g = {
     "selected-conversation-id": None,
     "conversation-editor-dirty": False,
     "conversations-dirty": False,
+    "ideas-document": {"items": []},
+    "ideas-dirty": False,
     "project-name": "no project entered",
     "project-guid": "",
     "suppress-editor-events": False,
@@ -120,7 +125,7 @@ def build_cockpit_surface(window: tk.Toplevel) -> None:
     build_inactive_card({"title": "STRUCTURE", "hint": "folders, packages, paths, jumpers", "row": 0, "column": 0})
     build_dictionary_card()
     build_conversations_card()
-    build_inactive_card({"title": "RESOURCES / JUMPERS", "hint": "tools, documents, and useful places", "row": 1, "column": 1})
+    build_ideas_card()
     build_whiteboard_card()
 
 
@@ -160,6 +165,39 @@ def build_dictionary_entry(parent: tk.Frame, label: str, row: int) -> ttk.Entry:
     entry = ttk.Entry(parent)
     entry.grid(row=row, column=1, sticky="ew", pady=2)
     return entry
+
+
+def build_ideas_card() -> None:
+    """Build the compact pinned-ideas view and its directory jump."""
+    surface=widgets["cockpit-surface"]; card=tk.Frame(surface,background="#ffffff",highlightbackground="#c7d2df",highlightthickness=1,padx=10,pady=10)
+    card.grid(row=1,column=1,sticky="nsew",padx=5,pady=5); card.columnconfigure(0,weight=1); card.rowconfigure(2,weight=1)
+    tk.Label(card,text="IDEAS",background="#ffffff",foreground="#173b62",font=("TkDefaultFont",12,"bold")).grid(row=0,column=0,sticky="w")
+    tk.Label(card,text="pinned possible work",background="#ffffff",foreground="#667789",font=("TkDefaultFont",9)).grid(row=1,column=0,sticky="w")
+    tree=ttk.Treeview(card,columns=("status","title"),show="headings",height=5); tree.heading("status",text="Status"); tree.heading("title",text="Title"); tree.column("status",width=95,stretch=False); tree.column("title",width=250,stretch=True)
+    tree.grid(row=2,column=0,sticky="nsew",pady=(5,0)); tree.bind("<Double-Button-1>",lambda e: ideas.open_editor(tree.selection()[0] if tree.selection() else None))
+    ttk.Button(card,text="Directory",command=ideas.open_directory).grid(row=3,column=0,sticky="w",pady=(6,0)); widgets["ideas-tree"]=tree
+
+
+def load_ideas_register() -> None:
+    """Load optional ideas without creating their file at startup."""
+    g["ideas-document"]=load_ideas(g["project-root"]); g["ideas-dirty"]=False
+    ideas.set_context({"root":widgets["window"],"document":g["ideas-document"],"save":save_ideas_register,"refresh":refresh_idea_views})
+    refresh_idea_views()
+
+
+def save_ideas_register() -> None:
+    """Persist all ideas after an editor validates its tags."""
+    save_ideas(g["project-root"],g["ideas-document"]); g["ideas-dirty"]=False; g["status"]="Idea saved."; project_status()
+
+
+def refresh_idea_views() -> None:
+    """Refresh pinned cockpit rows and any open directory."""
+    tree=widgets.get("ideas-tree")
+    if tree:
+        tree.delete(*tree.get_children())
+        for item in g["ideas-document"]["items"]:
+            if item.get("pinned"): tree.insert("","end",iid=item["guid"],values=(item.get("status",""),item.get("title","")))
+    ideas.refresh_directory()
 
 
 def build_conversations_card() -> None:
@@ -471,6 +509,7 @@ def refresh_cockpit_for_bound_project() -> None:
         load_current_whiteboard_from_disk()
         refresh_snapshot_navigation()
         load_conversation_register()
+        load_ideas_register()
         g["status"] = "Current"
     else:
         show_initialization_state()
@@ -618,6 +657,7 @@ def handle_when_user_initializes_project() -> None:
     load_current_whiteboard_from_disk()
     refresh_snapshot_navigation()
     load_conversation_register()
+    load_ideas_register()
     g["status"] = "Current"
     project_status()
 

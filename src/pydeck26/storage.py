@@ -57,6 +57,29 @@ def get_dictionary_entry_path(root: Path) -> Path:
     return get_pydeck_data_dir(root) / "dictionary-entry.json"
 
 
+def get_ideas_path(root: Path) -> Path:
+    """Return the optional project ideas register path."""
+    return root / "db" / "ideas.json"
+
+
+def load_ideas(root: Path) -> dict:
+    """Read ideas without creating an empty file during startup."""
+    path = get_ideas_path(root)
+    if not path.is_file():
+        return {"items": []}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise ValueError("ideas.json must contain a JSON object")
+    if not isinstance(data.get("items"), list):
+        data["items"] = []
+    return data
+
+
+def save_ideas(root: Path, document: dict) -> None:
+    """Write the complete ideas register and preserve unrecognized fields."""
+    write_text_atomic(get_ideas_path(root), f"{json.dumps(document, indent=2, ensure_ascii=False)}\n")
+
+
 def load_dictionary_entry(root: Path) -> dict | None:
     """Read the optional dictionary entry without creating a starter file."""
     path = get_dictionary_entry_path(root)
