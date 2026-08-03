@@ -3,7 +3,15 @@
   "identity": {
     "name": "pydeck26",
     "title": "Pydeck 2026",
-    "tags": [],
-    "hook": ""
+    "tags": [
+      "project",
+      "inventory",
+      "whiteboard",
+      "cockpit",
+      "python",
+      "projectmemory",
+      "tooling"
+    ],
+    "hook": "project cockpit for entering a project, seeing its shape, regaining the thread"
   }
 }
