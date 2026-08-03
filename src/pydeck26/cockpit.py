@@ -15,6 +15,7 @@ import lionscliapp as app
 from lionscliapp.execroot import get_execroot
 
 from pydeck26 import description_editor
+from pydeck26 import full_dictionary_editor
 from pydeck26.project_snapshot import read_project_snapshot
 from pydeck26.storage import (
     format_snapshot_time,
@@ -574,10 +575,29 @@ def refresh_masthead_from_dictionary() -> None:
 
 
 def handle_when_user_opens_full_dictionary_entry() -> None:
-    """Open the deliberately modest placeholder for the later expanded dictionary editor."""
-    window = tk.Toplevel(widgets["window"])
-    window.title("PyDeck 26: Full Dictionary Entry")
-    tk.Label(window, text="The full structured dictionary editor is not implemented yet.", padx=20, pady=20).pack()
+    """Open the flexible additional-fields view over the same canonical entry."""
+    full_dictionary_editor.set_full_dictionary_callbacks({"save": save_full_dictionary_additional_fields, "status": set_full_dictionary_status})
+    full_dictionary_editor.open_full_dictionary_editor({"parent": widgets["window"], "name": g["project-name"], "document": g["dictionary-document"]})
+
+
+def save_full_dictionary_additional_fields(additional: dict) -> None:
+    """Merge valid full-editor fields into the canonical entry without touching basics."""
+    document = g["dictionary-document"]
+    for key in list(document):
+        if key not in {"id", "identity"}:
+            del document[key]
+    document.update(additional)
+    save_dictionary_entry(g["project-root"], document)
+    g["dictionary-dirty"] = False
+    populate_dictionary_editor()
+    refresh_masthead_from_dictionary()
+    project_window_title()
+
+
+def set_full_dictionary_status(text: str) -> None:
+    """Mirror the full editor's validation and clipboard messages into PyDeck status."""
+    g["status"] = text
+    project_status()
 
 
 def show_initialization_state() -> None:
