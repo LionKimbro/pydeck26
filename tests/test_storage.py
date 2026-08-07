@@ -5,6 +5,7 @@ import pytest
 from pydeck26.storage import (
     get_conversations_path,
     get_dictionary_entry_path,
+    get_resources_path,
     get_snapshot_dir,
     get_whiteboard_path,
     initialize_project,
@@ -13,6 +14,7 @@ from pydeck26.storage import (
     save_snapshot,
     save_conversations,
     save_dictionary_entry,
+    save_resources,
     save_whiteboard,
 )
 
@@ -24,6 +26,17 @@ def test_initialize_project_creates_only_pydeck_owned_seed_files(tmp_path: Path)
     assert (tmp_path / "db" / "pydeck26" / "settings.json").read_text(encoding="utf-8") == "{}\n"
     assert get_snapshot_dir(tmp_path).is_dir()
     assert get_conversations_path(tmp_path).read_text(encoding="utf-8") == '{"items": []}\n'
+    assert get_resources_path(tmp_path).read_text(encoding="utf-8") == '{"items": []}\n'
+
+
+def test_save_resources_preserves_explicit_item_order(tmp_path: Path) -> None:
+    initialize_project(tmp_path)
+    document = {"items": [{"path": "docs/raw/", "filename": "020__architecture.md", "hook": "current architecture"}, {"path": "db/", "filename": "rules.md", "hook": "agent instructions"}]}
+
+    save_resources(tmp_path, document)
+
+    text = get_resources_path(tmp_path).read_text(encoding="utf-8")
+    assert text.index('"020__architecture.md"') < text.index('"rules.md"')
 
 
 def test_save_conversations_preserves_unfamiliar_fields(tmp_path: Path) -> None:

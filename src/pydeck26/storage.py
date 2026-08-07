@@ -40,6 +40,9 @@ def initialize_project(root: Path) -> None:
     conversations_path = get_pydeck_data_dir(root) / "conversations.json"
     if not conversations_path.exists():
         write_text_atomic(conversations_path, '{"items": []}\n')
+    resources_path = get_resources_path(root)
+    if not resources_path.exists():
+        write_text_atomic(resources_path, '{"items": []}\n')
 
 
 def load_whiteboard(root: Path) -> str:
@@ -62,6 +65,11 @@ def get_ideas_path(root: Path) -> Path:
     return root / "db" / "ideas.json"
 
 
+def get_resources_path(root: Path) -> Path:
+    """Return the PyDeck-owned curated project resources register path."""
+    return get_pydeck_data_dir(root) / "resources.json"
+
+
 def load_ideas(root: Path) -> dict:
     """Read ideas without creating an empty file during startup."""
     path = get_ideas_path(root)
@@ -78,6 +86,25 @@ def load_ideas(root: Path) -> dict:
 def save_ideas(root: Path, document: dict) -> None:
     """Write the complete ideas register and preserve unrecognized fields."""
     write_text_atomic(get_ideas_path(root), f"{json.dumps(document, indent=2, ensure_ascii=False)}\n")
+
+
+def load_resources(root: Path) -> dict:
+    """Read the ordered curated resource list without creating it at startup."""
+    path = get_resources_path(root)
+    if not path.is_file():
+        return {"items": []}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise ValueError("resources.json must contain a JSON object")
+    if not isinstance(data.get("items"), list):
+        data["items"] = []
+    return data
+
+
+def save_resources(root: Path, document: dict) -> None:
+    """Write the ordered curated resource list without touching referenced files."""
+    content = json.dumps(document, indent=2, ensure_ascii=False)
+    write_text_atomic(get_resources_path(root), f"{content}\n")
 
 
 def load_dictionary_entry(root: Path) -> dict | None:

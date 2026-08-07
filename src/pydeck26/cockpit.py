@@ -9,7 +9,7 @@ import webbrowser
 from datetime import date, datetime
 from pathlib import Path
 import tkinter as tk
-from tkinter import ttk
+from tkinter import filedialog, ttk
 
 import lionscliapp as app
 from lionscliapp.execroot import get_execroot
@@ -17,6 +17,7 @@ from lionscliapp.execroot import get_execroot
 from pydeck26 import description_editor
 from pydeck26 import full_dictionary_editor
 from pydeck26 import ideas
+from pydeck26 import resource_editor
 from pydeck26.project_snapshot import read_project_snapshot
 from pydeck26.storage import (
     format_snapshot_time,
@@ -27,11 +28,13 @@ from pydeck26.storage import (
     load_conversations,
     load_dictionary_entry,
     load_ideas,
+    load_resources,
     read_snapshot,
     save_snapshot,
     save_conversations,
     save_dictionary_entry,
     save_ideas,
+    save_resources,
     save_whiteboard,
 )
 
@@ -53,6 +56,8 @@ g = {
     "conversations-dirty": False,
     "ideas-document": {"items": []},
     "ideas-dirty": False,
+    "resources-document": {"items": []},
+    "resource-editor-is-new": False,
     "project-name": "no project entered",
     "project-guid": "",
     "suppress-editor-events": False,
@@ -122,7 +127,7 @@ def build_cockpit_surface(window: tk.Toplevel) -> None:
     surface.rowconfigure(1, weight=2)
     surface.rowconfigure(2, weight=0)
     widgets["cockpit-surface"] = surface
-    build_inactive_card({"title": "STRUCTURE", "hint": "folders, packages, paths, jumpers", "row": 0, "column": 0})
+    build_structure_card()
     build_dictionary_card()
     build_conversations_card()
     build_ideas_card()
@@ -137,6 +142,205 @@ def build_inactive_card(card_spec: dict) -> None:
     tk.Label(card, text=card_spec["title"], background="#ffffff", foreground="#173b62", font=("TkDefaultFont", 12, "bold")).pack(anchor="w")
     tk.Label(card, text=card_spec["hint"], background="#ffffff", foreground="#667789", font=("TkDefaultFont", 9)).pack(anchor="w", pady=(1, 10))
     tk.Label(card, text="This room is being held open for the project.", background="#ffffff", foreground="#263746", anchor="nw", justify="left").pack(anchor="w", fill="both", expand=True)
+
+
+def build_structure_card() -> None:
+    """Build the curated, explicitly ordered project-resource instrument."""
+    surface = widgets["cockpit-surface"]
+    card = tk.Frame(surface, background="#ffffff", highlightbackground="#c7d2df", highlightthickness=1, padx=10, pady=10)
+    card.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
+    card.columnconfigure(0, weight=1)
+    card.rowconfigure(2, weight=1)
+    tk.Label(card, text="STRUCTURE", background="#ffffff", foreground="#173b62", font=("TkDefaultFont", 12, "bold")).grid(row=0, column=0, sticky="w")
+    tk.Label(card, text="curated project resources — path copies, filename opens, hook explains", background="#ffffff", foreground="#667789", font=("TkDefaultFont", 9)).grid(row=1, column=0, sticky="w")
+    tree = ttk.Treeview(card, columns=("path", "filename", "hook"), show="headings", height=5)
+    for key, label, width in [("path", "Path", 120), ("filename", "Filename", 145), ("hook", "Hook", 220)]:
+        tree.heading(key, text=label)
+        tree.column(key, width=width, stretch=key == "hook")
+    tree.grid(row=2, column=0, sticky="nsew", pady=(5, 0))
+    tree.bind("<Double-Button-1>", handle_when_user_double_clicks_resource)
+    tree.bind("<Control-Up>", handle_when_user_moves_resource_up)
+    tree.bind("<Control-Down>", handle_when_user_moves_resource_down)
+    controls = ttk.Frame(card)
+    controls.grid(row=3, column=0, sticky="ew", pady=(6, 0))
+    ttk.Button(controls, text="Add", command=handle_when_user_adds_resource).pack(side="left")
+    ttk.Button(controls, text="Add Folder", command=handle_when_user_adds_resource_folder).pack(side="left", padx=(5, 0))
+    ttk.Button(controls, text="Remove", command=handle_when_user_removes_resource).pack(side="left", padx=(5, 0))
+    ttk.Button(controls, text="↑", width=3, command=move_selected_resource_up).pack(side="right")
+    ttk.Button(controls, text="↓", width=3, command=move_selected_resource_down).pack(side="right", padx=(0, 5))
+    widgets["resources-tree"] = tree
+
+
+def load_resources_register() -> None:
+    """Load the project-owned ordered resource list after initialization."""
+    g["resources-document"] = load_resources(g["project-root"])
+    resource_editor.set_resource_save_handler(save_resource_from_editor)
+    rebuild_resources_tree()
+
+
+def rebuild_resources_tree(selected_index: int | None = None) -> None:
+    """Project the stored resource order directly into the Structure tree."""
+    tree = widgets["resources-tree"]
+    tree.delete(*tree.get_children())
+    for index, item in enumerate(g["resources-document"]["items"]):
+        iid = str(index)
+        tree.insert("", "end", iid=iid, values=(item.get("path", ""), item.get("filename", ""), item.get("hook", "")))
+    if selected_index is not None and 0 <= selected_index < len(g["resources-document"]["items"]):
+        iid = str(selected_index)
+        tree.selection_set(iid)
+        tree.focus(iid)
+
+
+def get_selected_resource_index() -> int | None:
+    """Return the selected resource's array position, or no selection."""
+    selected = widgets["resources-tree"].selection()
+    return int(selected[0]) if selected else None
+
+
+def handle_when_user_adds_resource() -> None:
+    """Add an existing selected file without writing or changing that file."""
+    if not is_initialized(g["project-root"]):
+        g["status"] = "Initialize PyDeck 26 before adding a Structure resource."
+        project_status()
+        return
+    selected_path = filedialog.askopenfilename(parent=widgets["window"], initialdir=g["project-root"], title="Add Existing Project Resource")
+    if not selected_path:
+        return
+    add_selected_resource_path(Path(selected_path), "file")
+
+
+def handle_when_user_adds_resource_folder() -> None:
+    """Add an existing selected folder without writing or changing that folder."""
+    if not is_initialized(g["project-root"]):
+        g["status"] = "Initialize PyDeck 26 before adding a Structure resource."
+        project_status()
+        return
+    selected_path = filedialog.askdirectory(parent=widgets["window"], initialdir=g["project-root"], title="Add Existing Project Folder")
+    if not selected_path:
+        return
+    add_selected_resource_path(Path(selected_path), "folder")
+
+
+def add_selected_resource_path(selected_path: Path, kind: str) -> None:
+    """Store one picked file or folder with a relative path when it belongs to this project."""
+    root = g["project-root"].resolve()
+    selected_path = selected_path.resolve()
+    try:
+        parent = selected_path.parent.relative_to(root).as_posix()
+        resource_path = f"{parent}/" if parent != "." else ""
+    except ValueError:
+        resource_path = str(selected_path.parent)
+    item = {
+        "path": resource_path,
+        "filename": selected_path.name,
+        "hook": "(double-click to assign hook)",
+        "kind": kind,
+    }
+    g["resource-editor-is-new"] = True
+    save_resource_from_editor(item)
+
+
+def save_resource_from_editor(item: dict) -> None:
+    """Add or replace one resource, then persist only the curated list."""
+    index = get_selected_resource_index()
+    if g["resource-editor-is-new"] or index is None:
+        g["resources-document"]["items"].append(item)
+        index = len(g["resources-document"]["items"]) - 1
+    else:
+        g["resources-document"]["items"][index] = item
+    save_resources(g["project-root"], g["resources-document"])
+    g["resource-editor-is-new"] = False
+    rebuild_resources_tree(index)
+    g["status"] = "Structure resource saved."
+    project_status()
+
+
+def handle_when_user_removes_resource() -> None:
+    """Remove only the selected record from the curated list, never from disk."""
+    index = get_selected_resource_index()
+    if index is None:
+        return
+    del g["resources-document"]["items"][index]
+    save_resources(g["project-root"], g["resources-document"])
+    rebuild_resources_tree(min(index, len(g["resources-document"]["items"]) - 1))
+    g["status"] = "Structure resource removed from the curated list."
+    project_status()
+
+
+def handle_when_user_double_clicks_resource(event: tk.Event) -> None:
+    """Perform the deliberate action associated with the clicked resource column."""
+    item_id = widgets["resources-tree"].identify_row(event.y)
+    column = widgets["resources-tree"].identify_column(event.x)
+    if not item_id:
+        return
+    widgets["resources-tree"].selection_set(item_id)
+    item = g["resources-document"]["items"][int(item_id)]
+    if column == "#1":
+        copy_text_to_clipboard(str(get_absolute_resource_path(item)))
+        g["status"] = "Copied complete absolute resource path."
+    elif column == "#2":
+        open_selected_resource(item)
+    elif column == "#3":
+        g["resource-editor-is-new"] = False
+        resource_editor.open_resource_editor({"parent": widgets["window"], "title": "Edit Resource Hook", "item": item, "hook-only": True})
+    project_status()
+
+
+def open_selected_resource(item: dict) -> None:
+    """Open one declared file or folder after a safe containment check."""
+    root = g["project-root"].resolve()
+    path = get_absolute_resource_path(item)
+    try:
+        path.relative_to(root)
+    except ValueError:
+        g["status"] = "Resource path must remain inside this project."
+        return
+    if not path.exists():
+        g["status"] = "This resource is not currently on disk."
+        return
+    os.startfile(path)
+    g["status"] = f"Opened Structure {item.get('kind', 'file')}."
+
+
+def get_absolute_resource_path(item: dict) -> Path:
+    """Resolve one stored relative or absolute resource record into its full path."""
+    return (g["project-root"].resolve() / item.get("path", "") / item.get("filename", "")).resolve()
+
+
+def handle_when_user_moves_resource_up(event: tk.Event) -> str:
+    """Move the selected resource up with Ctrl+Up."""
+    move_selected_resource_up()
+    return "break"
+
+
+def handle_when_user_moves_resource_down(event: tk.Event) -> str:
+    """Move the selected resource down with Ctrl+Down."""
+    move_selected_resource_down()
+    return "break"
+
+
+def move_selected_resource_up() -> None:
+    """Preserve explicit order while moving one selected resource toward the top."""
+    move_selected_resource(-1)
+
+
+def move_selected_resource_down() -> None:
+    """Preserve explicit order while moving one selected resource toward the bottom."""
+    move_selected_resource(1)
+
+
+def move_selected_resource(change: int) -> None:
+    """Swap the selected resource with its immediate ordered neighbor."""
+    index = get_selected_resource_index()
+    target = index + change if index is not None else None
+    items = g["resources-document"]["items"]
+    if target is None or not 0 <= target < len(items):
+        return
+    items[index], items[target] = items[target], items[index]
+    save_resources(g["project-root"], g["resources-document"])
+    rebuild_resources_tree(target)
+    g["status"] = "Structure resource reordered."
+    project_status()
 
 
 def build_dictionary_card() -> None:
@@ -510,6 +714,7 @@ def refresh_cockpit_for_bound_project() -> None:
         refresh_snapshot_navigation()
         load_conversation_register()
         load_ideas_register()
+        load_resources_register()
         g["status"] = "Current"
     else:
         show_initialization_state()
@@ -658,6 +863,7 @@ def handle_when_user_initializes_project() -> None:
     refresh_snapshot_navigation()
     load_conversation_register()
     load_ideas_register()
+    load_resources_register()
     g["status"] = "Current"
     project_status()
 
