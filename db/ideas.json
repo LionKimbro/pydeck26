@@ -111,6 +111,39 @@
         "tracking"
       ],
       "pinned": false
+    },
+    {
+      "guid": "32a8c643-3f37-4ce5-930f-16b9993ba189",
+      "title": "BIG RED BUTTON",
+      "description": "\"Do it.\"  Run the program.  Or run SOMETHING.",
+      "status": "conceived",
+      "date-conceived": "2026-08-07",
+      "date-entered": "2026-08-07",
+      "notes": "",
+      "tags": [
+        "doit",
+        "big",
+        "red",
+        "button",
+        "bigredbutton"
+      ],
+      "pinned": true
+    },
+    {
+      "guid": "f44699c7-76be-4675-8123-48190c6a51a0",
+      "title": "Hooks for Ideas",
+      "description": "Add a hook string option for ideas.  Duh.",
+      "status": "conceived",
+      "date-conceived": "2026-08-07",
+      "date-entered": "2026-08-07",
+      "notes": "",
+      "tags": [
+        "hook",
+        "hooks",
+        "idea",
+        "ideas"
+      ],
+      "pinned": true
     }
   ]
 }
