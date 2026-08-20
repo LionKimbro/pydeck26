@@ -411,7 +411,8 @@ def build_conversations_card() -> None:
     card.grid(row=1, column=0, sticky="nsew", padx=5, pady=5)
     card.columnconfigure(0, weight=2)
     card.columnconfigure(1, weight=3)
-    card.rowconfigure(2, weight=0)
+    # Give the conversation list the remaining card height.
+    card.rowconfigure(2, weight=1)
     tk.Label(card, text="CONVERSATIONS", background="#ffffff", foreground="#173b62", font=("TkDefaultFont", 12, "bold")).grid(row=0, column=0, sticky="w")
     tk.Label(card, text="conversations with LLMs", background="#ffffff", foreground="#667789", font=("TkDefaultFont", 9)).grid(row=1, column=0, sticky="w", pady=(1, 6))
 
@@ -422,6 +423,9 @@ def build_conversations_card() -> None:
     tree = ttk.Treeview(list_panel, columns=("title",), show="", selectmode="browse", height=5)
     tree.column("title", width=165, stretch=True)
     tree.grid(row=0, column=0, sticky="nsew")
+    scrollbar = ttk.Scrollbar(list_panel, orient="vertical", command=tree.yview)
+    scrollbar.grid(row=0, column=1, sticky="ns")
+    tree.configure(yscrollcommand=scrollbar.set)
     tree.bind("<<TreeviewSelect>>", handle_when_user_selects_conversation)
     ttk.Button(list_panel, text="New Conversation", command=handle_when_user_creates_conversation).grid(row=1, column=0, sticky="w", pady=(6, 0))
 
