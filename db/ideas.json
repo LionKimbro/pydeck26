@@ -19,14 +19,14 @@
     },
     {
       "guid": "5cbd1558-63ee-4911-8d57-055d6210bd3e",
-      "title": "Timeline/Captain's Log",
+      "title": "Project Timeline Projections",
       "description": "Known or estimated timeline of project implementation.",
       "status": "conceived",
       "date-conceived": "2026-08-02",
       "date-entered": "2026-08-02",
-      "notes": "Revisiting 2026-08-07, --\nI'm thinking it's also useful just as a \"captain's log.\"\nIn fact, I'd probably like to call it Captain's Log.\nAnd this might go in its own tab.\nPerhaps the Dictionary might move into that tab as well.",
+      "notes": "2026-08-20\n  segregated out the (previously mixed in idea of a) Captain's Log",
       "tags": [],
-      "pinned": true
+      "pinned": false
     },
     {
       "guid": "0ee7b614-7f3b-4063-8c8b-f914b8241159",
@@ -52,7 +52,7 @@
     },
     {
       "guid": "110bd331-3672-4179-ab6f-e2aaee90f0a9",
-      "title": "Full-project structure Telemetry",
+      "title": "Metrics Mini-Panel",
       "description": "Automatically observed facts about a system's current conditions.",
       "status": "conceived",
       "date-conceived": "before 2026-08-02",
@@ -93,7 +93,7 @@
         "project",
         "projects"
       ],
-      "pinned": true
+      "pinned": false
     },
     {
       "guid": "821ce980-36f3-4355-934d-2e1c1eb780d5",
@@ -114,7 +114,7 @@
     },
     {
       "guid": "32a8c643-3f37-4ce5-930f-16b9993ba189",
-      "title": "BIG RED BUTTON",
+      "title": "BIG RED RUN BUTTON",
       "description": "\"Do it.\"  Run the program.  Or run SOMETHING.",
       "status": "conceived",
       "date-conceived": "2026-08-07",
