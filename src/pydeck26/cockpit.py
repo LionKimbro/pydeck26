@@ -420,8 +420,14 @@ def build_conversations_card() -> None:
     list_panel.grid(row=2, column=0, sticky="nsew", padx=(0, 8))
     list_panel.columnconfigure(0, weight=1)
     list_panel.rowconfigure(0, weight=1)
-    tree = ttk.Treeview(list_panel, columns=("title",), show="", selectmode="browse", height=5)
-    tree.column("title", width=165, stretch=True)
+    tree = ttk.Treeview(list_panel, columns=("date", "title", "hook"), show="headings", selectmode="browse", height=5)
+    for key, label, width, stretch in [
+        ("date", "Date", 88, False),
+        ("title", "Title", 170, True),
+        ("hook", "Hook", 210, True),
+    ]:
+        tree.heading(key, text=label)
+        tree.column(key, width=width, stretch=stretch)
     tree.grid(row=0, column=0, sticky="nsew")
     scrollbar = ttk.Scrollbar(list_panel, orient="vertical", command=tree.yview)
     scrollbar.grid(row=0, column=1, sticky="ns")
@@ -479,7 +485,12 @@ def rebuild_conversation_tree() -> None:
     tree.delete(*tree.get_children())
     items = sorted(g["conversations-document"]["items"], key=get_conversation_sort_key, reverse=True)
     for item in items:
-        tree.insert("", "end", iid=item["id"], values=(get_conversation_label(item),))
+        tree.insert(
+            "",
+            "end",
+            iid=item["id"],
+            values=(item.get("date", ""), item.get("title", ""), item.get("hook", "")),
+        )
     selected_id = g["selected-conversation-id"]
     if selected_id and tree.exists(selected_id):
         tree.selection_set(selected_id)
@@ -502,15 +513,6 @@ def select_topmost_conversation() -> None:
 def get_conversation_sort_key(item: dict) -> str:
     """Use ISO dates for a simple newest-first lifeline order."""
     return str(item.get("date") or "")
-
-
-def get_conversation_label(item: dict) -> str:
-    """Give each conversation a useful single-column label."""
-    if str(item.get("title") or "").strip():
-        return item["title"]
-    if str(item.get("date") or "").strip():
-        return item["date"]
-    return "Untitled conversation"
 
 
 def handle_when_user_selects_conversation(event: tk.Event) -> None:
