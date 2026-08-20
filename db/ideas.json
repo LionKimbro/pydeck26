@@ -19,7 +19,7 @@
     },
     {
       "guid": "5cbd1558-63ee-4911-8d57-055d6210bd3e",
-      "title": "Timeline",
+      "title": "Timeline/Captain's Log",
       "description": "Known or estimated timeline of project implementation.",
       "status": "conceived",
       "date-conceived": "2026-08-02",
@@ -37,7 +37,7 @@
       "date-entered": "2026-08-02",
       "notes": "",
       "tags": [],
-      "pinned": false
+      "pinned": true
     },
     {
       "guid": "347406cf-930f-47a1-9030-e11c7160e63e",
@@ -136,13 +136,44 @@
       "status": "conceived",
       "date-conceived": "2026-08-07",
       "date-entered": "2026-08-07",
-      "notes": "",
+      "notes": "Search through https://chatgpt.com/c/6a6d91dd-079c-83e8-addf-11360c59e3a9 for \"reconstructed history\" because that's absolutely an idea we should be including in here.",
       "tags": [
         "hook",
         "hooks",
         "idea",
         "ideas"
       ],
+      "pinned": true
+    },
+    {
+      "guid": "3a918da5-e862-4f72-ad21-2fd983b8c069",
+      "title": "Save Positioning Info",
+      "description": "Save/Restore:\n* the position of the window\n* the width of the columns on the tkinter.Tree widgets",
+      "status": "conceived",
+      "date-conceived": "2026-08-07",
+      "date-entered": "2026-08-07",
+      "notes": "",
+      "tags": [
+        "save",
+        "restore",
+        "tree",
+        "widget",
+        "widgets",
+        "size",
+        "position",
+        "coordinates"
+      ],
+      "pinned": false
+    },
+    {
+      "guid": "20003891-9bba-4ed4-be2c-1db870fc0bf6",
+      "title": "Captain's Log",
+      "description": "\"Captain's Log, Stardate, 2026.08.20...\"",
+      "status": "conceived",
+      "date-conceived": "2026-08-02",
+      "date-entered": "2026-08-02",
+      "notes": "In 2026-08-02, I came up with a project's projected timeline (see: 20003891-9bba-4ed4-be2c-1db870fc0bf6,) but on 2026-08-07 I had the insight to interpret it as a \"Captain's Log.\"  -- Which I think is a superior, much more useful idea!, at least initially.\n\nRight now, I use snapshots on the Whiteboard as the Captain's Log, but -- I think it would serve much more utility outside the Whiteboard.\n\nThis might go in its own tab.\nPerhaps the Dictionary might move into that tab as well.",
+      "tags": [],
       "pinned": true
     }
   ]
