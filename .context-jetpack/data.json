@@ -55,6 +55,11 @@
       "designation": "required",
       "reason": "These are the broad things to hold in mind when writing Python programs for Lion."
     },
+    "bad-method": {
+      "selected": false,
+      "designation": "required",
+      "reason": "The development process we will use to meet our goal."
+    },
     "json-document-writing": {
       "selected": false,
       "designation": "recommended",

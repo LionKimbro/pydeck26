@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import uuid
@@ -152,6 +153,7 @@ def build_structure_card() -> None:
     card.columnconfigure(0, weight=1)
     card.rowconfigure(2, weight=1)
     tk.Label(card, text="STRUCTURE", background="#ffffff", foreground="#173b62", font=("TkDefaultFont", 12, "bold")).grid(row=0, column=0, sticky="w")
+    ttk.Button(card, text="Copy", command=handle_when_user_copies_structure_json).grid(row=0, column=0, sticky="e")
     tk.Label(card, text="curated project resources — path copies, filename opens, hook explains", background="#ffffff", foreground="#667789", font=("TkDefaultFont", 9)).grid(row=1, column=0, sticky="w")
     tree = ttk.Treeview(card, columns=("path", "filename", "hook"), show="headings", height=5)
     for key, label, width in [("path", "Path", 120), ("filename", "Filename", 145), ("hook", "Hook", 220)]:
@@ -189,6 +191,22 @@ def rebuild_resources_tree(selected_index: int | None = None) -> None:
         iid = str(selected_index)
         tree.selection_set(iid)
         tree.focus(iid)
+
+
+def handle_when_user_copies_structure_json() -> None:
+    """Copy the curated Structure records as LLM-ready JSON."""
+    resources = [
+        {
+            "path": item.get("path", ""),
+            "filename": item.get("filename", ""),
+            "full-path": str(get_absolute_resource_path(item)),
+            "hook": item.get("hook", ""),
+        }
+        for item in g["resources-document"]["items"]
+    ]
+    copy_text_to_clipboard(json.dumps(resources, indent=2, ensure_ascii=False))
+    g["status"] = "Structure JSON copied to clipboard."
+    project_status()
 
 
 def get_selected_resource_index() -> int | None:

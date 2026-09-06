@@ -1,7 +1,9 @@
+import json
 from pathlib import Path
 
 import pytest
 
+from pydeck26 import cockpit
 from pydeck26.storage import (
     get_conversations_path,
     get_dictionary_entry_path,
@@ -37,6 +39,24 @@ def test_save_resources_preserves_explicit_item_order(tmp_path: Path) -> None:
 
     text = get_resources_path(tmp_path).read_text(encoding="utf-8")
     assert text.index('"020__architecture.md"') < text.index('"rules.md"')
+
+
+def test_copy_structure_json_includes_complete_paths_in_resource_order(tmp_path: Path, monkeypatch) -> None:
+    copied = []
+    monkeypatch.setitem(cockpit.g, "project-root", tmp_path)
+    monkeypatch.setitem(cockpit.g, "resources-document", {"items": [
+        {"path": "docs/raw/", "filename": "020__architecture.md", "hook": "current architecture"},
+        {"path": "db/", "filename": "rules.md", "hook": "agent instructions"},
+    ]})
+    monkeypatch.setattr(cockpit, "copy_text_to_clipboard", copied.append)
+    monkeypatch.setattr(cockpit, "project_status", lambda: None)
+
+    cockpit.handle_when_user_copies_structure_json()
+
+    assert json.loads(copied[0]) == [
+        {"path": "docs/raw/", "filename": "020__architecture.md", "full-path": str(tmp_path / "docs" / "raw" / "020__architecture.md"), "hook": "current architecture"},
+        {"path": "db/", "filename": "rules.md", "full-path": str(tmp_path / "db" / "rules.md"), "hook": "agent instructions"},
+    ]
 
 
 def test_save_conversations_preserves_unfamiliar_fields(tmp_path: Path) -> None:
