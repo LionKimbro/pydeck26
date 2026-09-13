@@ -175,6 +175,22 @@
       "notes": "In 2026-08-02, I came up with a project's projected timeline (see: 20003891-9bba-4ed4-be2c-1db870fc0bf6,) but on 2026-08-07 I had the insight to interpret it as a \"Captain's Log.\"  -- Which I think is a superior, much more useful idea!, at least initially.\n\nRight now, I use snapshots on the Whiteboard as the Captain's Log, but -- I think it would serve much more utility outside the Whiteboard.\n\nThis might go in its own tab.\nPerhaps the Dictionary might move into that tab as well.",
       "tags": [],
       "pinned": true
+    },
+    {
+      "guid": "c77330eb-d327-472e-aabc-b1b79e34e036",
+      "title": "Image Panels",
+      "description": "Make it so you can include an image directly into a panel.",
+      "status": "conceived",
+      "date-conceived": "2026-09-08",
+      "date-entered": "2026-09-08",
+      "notes": "",
+      "tags": [
+        "image",
+        "picture",
+        "diagram",
+        "illustration"
+      ],
+      "pinned": true
     }
   ]
 }
