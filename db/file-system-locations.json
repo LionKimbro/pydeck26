@@ -1,0 +1,217 @@
+{
+  "items": [
+    {
+      "id": "librarian2.registry",
+      "title": "Librarian2 registry",
+      "path": "C:\\Users\\Lion\\.librarian2\\registry.json",
+      "audiences": [
+        "general"
+      ]
+    },
+    {
+      "id": "m1lattice.merging.guide.v2",
+      "title": "M1 Lattice: Merging Guide",
+      "purpose": "Provides exploratory guidance for combining M1 transport units. This document reflects early understanding and is expected to evolve with practical experience.",
+      "path": "F:\\repo\\m1\\docs\\raw\\023__merging-guide.json",
+      "source": "C:\\Users\\Lion\\.librarian2\\registry.json"
+    },
+    {
+      "id": "m1lattice.runtime-manual",
+      "title": "M1 Runtime Manual",
+      "purpose": "This document explains how to use the `m1` Python package as a runtime for loading, inspecting, editing, and re-emitting M1 data.\n\nIt is about programmer use of the runtime module. It does not describe the browser UI.",
+      "path": "F:\\repo\\m1\\docs\\raw\\026__runtime-manual.md",
+      "source": "C:\\Users\\Lion\\.librarian2\\registry.json"
+    },
+    {
+      "id": "m1lattice.runtime.api.v1",
+      "title": "M1 Runtime API Outline",
+      "purpose": "Outline the intended programmer-facing runtime model and API for working with loaded M1 documents, overlay edits, cache selection, sourcing, ordering, loading, and saving.",
+      "path": "F:\\repo\\m1\\docs\\raw\\025__runtime-spec.json",
+      "source": "C:\\Users\\Lion\\.librarian2\\registry.json"
+    },
+    {
+      "id": "m1lattice.spec.core.v3",
+      "title": "M1 Lattice: Core Specification (Epoch 2)",
+      "purpose": "Defines the structure and behavior of entities and their aspects in the M1 Lattice system.",
+      "path": "F:\\repo\\m1\\docs\\raw\\030__m1lattice-spec-core-v3.json",
+      "source": "C:\\Users\\Lion\\.librarian2\\registry.json",
+      "audiences": [
+        "arch",
+        "programmer"
+      ]
+    },
+    {
+      "id": "m1lattice.spec.transport.v3",
+      "title": "M1 Lattice: Transport Specification (Epoch 2)",
+      "purpose": "Defines how M1 entities and aspects are represented for storage and exchange.",
+      "path": "F:\\repo\\m1\\docs\\raw\\031__m1lattice-spec-transport-v3.json",
+      "source": "C:\\Users\\Lion\\.librarian2\\registry.json",
+      "audiences": [
+        "programmer"
+      ]
+    },
+    {
+      "id": "m1lattice.vocab.linktypes.v1",
+      "title": "M1 Lattice: Recommended Link Types",
+      "purpose": "Provides a shared set of commonly useful link types to promote consistency across M1 systems.",
+      "path": "F:\\repo\\m1\\docs\\raw\\022__link-types.json",
+      "source": "C:\\Users\\Lion\\.librarian2\\registry.json",
+      "audiences": [
+        "arch",
+        "programmer"
+      ]
+    },
+    {
+      "id": "chronomark",
+      "title": "Chronomark",
+      "purpose": "Handles uncertain times and related temporal representation for Arcs. Detailed review deferred.",
+      "path": "F:\\repo\\chronomark",
+      "audiences": [
+        "arch",
+        "programmer"
+      ]
+    },
+    {
+      "id": "filetalk.manifesto",
+      "title": "FileTalk manifesto",
+      "purpose": "Foundational philosophy of inspectable, composable programs cooperating through files.",
+      "path": "F:\\repo\\filetalk\\docs\\manifesto\\2025-06-04_filetalk-manifesto.md",
+      "source": "F:\\repo\\filetalk\\README.md"
+    },
+    {
+      "id": "patchboard.spec.messages.core.v1",
+      "title": "FileTalk Core v1 (stored as Patchboard Core Message Specification)",
+      "purpose": "Core JSON message fields: channel, signal, timestamp. Transport and routing are outside core scope.",
+      "path": "F:\\repo\\filetalk\\docs\\spec\\patchboard-core.v1.json",
+      "companion_path": "F:\\repo\\filetalk\\docs\\spec\\patchboard-core.v1.md",
+      "source": "F:\\repo\\filetalk\\README.md",
+      "audiences": [
+        "arch",
+        "programmer"
+      ]
+    },
+    {
+      "id": "patchboard.spec.messages.file-transport.v1",
+      "title": "FileTalk File Transport Profile v1",
+      "purpose": "One UTF-8 JSON message per uniquely named file; directory polling, incomplete-write retries, and removal after processing.",
+      "path": "F:\\repo\\filetalk\\docs\\spec\\patchboard-file-transport.v1.json",
+      "companion_path": "F:\\repo\\filetalk\\docs\\spec\\patchboard-file-transport.v1.md",
+      "source": "F:\\repo\\filetalk\\README.md",
+      "audiences": [
+        "programmer"
+      ]
+    },
+    {
+      "id": "bounded-agentic-development.basic-method",
+      "title": "Bounded Agentic Development — basic method",
+      "purpose": "Small bounded implementation acts, explicit responsibilities, and flexible outline sketches. Arcs uses minimal broad-stroke pseudocode.",
+      "path": "F:\\repo\\bad-development-ruminition\\docs\\distillation\\basic-method.md",
+      "audiences": [
+        "arch",
+        "programmer"
+      ]
+    },
+    {
+      "id": "today.repository",
+      "title": "Today reference application",
+      "purpose": "Reference implementation for Tk/Core/Mem/Disk machines, Mobile Stacks, startup, orderly shutdown, and fatal worker handling.",
+      "path": "F:\\repo\\today",
+      "audiences": [
+        "arch",
+        "programmer"
+      ]
+    },
+    {
+      "id": "today.architecture-review.2026-10-06",
+      "title": "Today architecture review — October 6, 2026",
+      "purpose": "Architecture report; consult current src/today implementation for lifecycle behavior.",
+      "path": "F:\\repo\\today\\docs\\architecture-review.md",
+      "audiences": [
+        "arch",
+        "programmer"
+      ]
+    },
+    {
+      "id": "project-structure.python-2026-03.agent-guide.compact.v1",
+      "title": "Lion's python-2026-03 Project Structure — Compact Agent Guide",
+      "purpose": "Brief overview of how Lion's projects and repositories are organized.",
+      "path": "F:\\repo\\lions-documents\\raw\\0012__python-2026-03-project-structure-agent-guide-short.md",
+      "source": "C:\\Users\\Lion\\.librarian2\\registry.json",
+      "audiences": [
+        "general"
+      ]
+    },
+    {
+      "id": "lionsphilosophyofprogramming.style-cards-2026.globals.v1",
+      "title": "Coding Style Card — Globals",
+      "purpose": "Program with this philosophy of Globals.",
+      "path": "F:\\repo\\lions-documents\\coding-guidelines\\style-cards\\0100_globals.style-card.md",
+      "source": "C:\\Users\\Lion\\.librarian2\\registry.json",
+      "audiences": [
+        "programmer"
+      ]
+    },
+    {
+      "id": "lionsphilosophyofprogramming.style-cards-2026.function-names.v1",
+      "title": "Coding Style Card — Function Names",
+      "purpose": "Guidance for naming functions.",
+      "path": "F:\\repo\\lions-documents\\coding-guidelines\\style-cards\\0210_function_names.style-card.md",
+      "source": "C:\\Users\\Lion\\.librarian2\\registry.json",
+      "audiences": [
+        "programmer"
+      ]
+    },
+    {
+      "id": "lionsphilosophyofprogramming.style-cards-2026.function-arguments.v1",
+      "title": "Coding Style Card — Function Arguments and Flags",
+      "purpose": "Guidance for designing function parameter lists.",
+      "path": "F:\\repo\\lions-documents\\coding-guidelines\\style-cards\\0220_function_arguments.style-card.md",
+      "source": "C:\\Users\\Lion\\.librarian2\\registry.json",
+      "audiences": [
+        "programmer"
+      ]
+    },
+    {
+      "id": "lionsphilosophyofprogramming.style-cards-2026.machines.v1",
+      "title": "Coding Style Card — Machines",
+      "purpose": "Program as small Machines rather than abstractions.",
+      "path": "F:\\repo\\lions-documents\\coding-guidelines\\style-cards\\0400_machines.style-card.md",
+      "source": "C:\\Users\\Lion\\.librarian2\\registry.json",
+      "audiences": [
+        "programmer"
+      ]
+    },
+    {
+      "id": "lionsphilosophyofprogramming.style-cards-2026.registers.v1",
+      "title": "Coding Style Card — Registers",
+      "purpose": "Guidance for using registers in machines.",
+      "path": "F:\\repo\\lions-documents\\coding-guidelines\\style-cards\\0410_registers.style-card.md",
+      "source": "C:\\Users\\Lion\\.librarian2\\registry.json",
+      "audiences": [
+        "programmer"
+      ]
+    },
+    {
+      "id": "lionsphilosophyofprogramming.style-cards-2026.python.v1",
+      "title": "Coding Style Card — Python Rules",
+      "purpose": "Broad guidance for writing Python programs for Lion.",
+      "path": "F:\\repo\\lions-documents\\coding-guidelines\\style-cards\\0800_python_rules.style-card.md",
+      "source": "C:\\Users\\Lion\\.librarian2\\registry.json",
+      "audiences": [
+        "programmer"
+      ]
+    },
+    {
+      "id": "machine-root.package.description.v1",
+      "title": "MachineRoot Python Package Description",
+      "purpose": "Describes how the program data root is constructed from a root specified by MachineRoot.",
+      "path": "F:\\repo\\machine-root\\docs\\raw\\0001__machineroot-package.json",
+      "source": "C:\\Users\\Lion\\.librarian2\\registry.json",
+      "audiences": [
+        "arch",
+        "programmer"
+      ]
+    }
+  ],
+  "reference_audience_note": "Implementation references are primarily for the Arcs programmer. Audience labels may include 'arch', 'programmer', or 'general'; entries may be left unlabeled when no audience has been specified."
+}
