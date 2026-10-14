@@ -252,6 +252,31 @@ def test_resources_and_ideas_keep_order_unknown_fields_and_original_files(projec
     assert ideas["items"] == [{"guid": "idea", "title": "Revised", "pinned": False, "custom": [1]}]
 
 
+def test_copy_structure_exports_ordered_paths_without_changing_records(project):
+    root, commands = project
+    send({"type": "COPY_STRUCTURE"})
+    assert json.loads(receive(commands, lambda command: command["type"] == "COPY_TEXT")["text"]) == []
+    for path, kind in [(root / "missing.txt", "file"), (root / "docs", "folder"),
+                       (root.parent / "outside.txt", "file")]:
+        send({"type": "RESOURCE_ADD", "path": str(path), "kind": kind})
+    send({"type": "RESOURCE_MOVE", "index": 1, "change": -1})
+    send({"type": "RESOURCE_EDIT", "index": 0, "item": {"hook": "文書", "custom": True}})
+    send({"type": "COPY_STRUCTURE"})
+    copied = receive(commands, lambda command: command["type"] == "COPY_TEXT")["text"]
+    assert "文書" in copied
+    assert json.loads(copied) == [
+        {"path": "", "filename": "docs", "full-path": str(root / "docs"), "hook": "文書"},
+        {"path": "", "filename": "missing.txt", "full-path": str(root / "missing.txt"),
+         "hook": "(double-click to assign hook)"},
+        {"path": str(root.parent), "filename": "outside.txt",
+         "full-path": str(root.parent / "outside.txt"), "hook": "(double-click to assign hook)"},
+    ]
+    stop(commands)
+    saved = json.loads((root / "db/pydeck26/resources.json").read_text())
+    assert saved["items"][0]["custom"] is True
+    assert all("full-path" not in item for item in saved["items"])
+
+
 def test_close_waits_for_outstanding_snapshot_work(project, monkeypatch):
     root, commands = project
     started, release = Event(), Event()

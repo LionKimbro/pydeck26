@@ -2,6 +2,7 @@
 
 from copy import deepcopy
 from datetime import date, datetime
+import json
 from pathlib import Path
 import re
 from uuid import uuid4
@@ -230,6 +231,15 @@ def reduce_event(event):
             items[index], items[target] = items[target], items[index]
         touch_document("resources")
         request_commit({"resources"})
+    elif kind == "COPY_STRUCTURE":
+        effects.append({"type": "STACK", "registers": {
+            "items": deepcopy(documents["resources"]["items"]),
+        }, "frames": [{"machine": "CORE", "entry": "STRUCTURE_RETURNED"},
+                       {"machine": "DISK", "entry": "STRUCTURE_PATHS"}]})
+    elif kind == "STRUCTURE_RETURNED":
+        effects.append({"type": "TK", "command": {
+            "type": "COPY_TEXT", "text": json.dumps(event["items"], indent=2, ensure_ascii=False),
+        }})
     elif kind == "RESOURCE_ACTION":
         effects.append({"type": "STACK", "registers": {
             "item": deepcopy(event["item"]), "action": event["action"],
@@ -325,7 +335,7 @@ def handle_when_core_receives_stack_result():
 
 HANDLERS = {name: handle_when_core_receives_stack_result for name in (
     "PROJECT_RETURNED", "COMMIT_RETURNED", "HISTORY_RETURNED",
-    "SNAPSHOT_RETURNED", "RESOURCE_RETURNED",
+    "SNAPSHOT_RETURNED", "RESOURCE_RETURNED", "STRUCTURE_RETURNED",
 )}
 
 

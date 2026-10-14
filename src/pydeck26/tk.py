@@ -56,6 +56,9 @@ def handle_when_polling_core_commands():
                     send({"type": "STATUS", "text": str(error)})
             elif command["type"] == "COPY_PATH":
                 copy_text_to_clipboard(command["path"])
+            elif command["type"] == "COPY_TEXT":
+                copy_text_to_clipboard(command["text"])
+                send({"type": "STATUS", "text": "Structure JSON copied to clipboard."})
     except Empty:
         pass
     root.after(20, handle_when_polling_core_commands)
@@ -238,6 +241,11 @@ def handle_when_user_adds_resource():
     path = filedialog.askopenfilename(parent=widgets["window"], initialdir=g["project-root"], title="Add Existing Project Resource")
     if path:
         send({"type": "RESOURCE_ADD", "path": path, "kind": "file"})
+
+
+def handle_when_user_copies_structure_json():
+    if g["view"] and g["view"]["ready"]:
+        send({"type": "COPY_STRUCTURE"})
 
 
 def handle_when_user_adds_resource_folder():
@@ -451,6 +459,7 @@ def build_structure_card() -> None:
     card.columnconfigure(0, weight=1)
     card.rowconfigure(2, weight=1)
     tk.Label(card, text="STRUCTURE", background="#ffffff", foreground="#173b62", font=("TkDefaultFont", 12, "bold")).grid(row=0, column=0, sticky="w")
+    ttk.Button(card, text="Copy", command=handle_when_user_copies_structure_json).grid(row=0, column=0, sticky="e")
     tk.Label(card, text="curated project resources — path copies, filename opens, hook explains", background="#ffffff", foreground="#667789", font=("TkDefaultFont", 9)).grid(row=1, column=0, sticky="w")
     tree = ttk.Treeview(card, columns=("path", "filename", "hook"), show="headings", height=5)
     for key, label, width in [("path", "Path", 120), ("filename", "Filename", 145), ("hook", "Hook", 220)]:

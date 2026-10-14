@@ -23,7 +23,7 @@ def run():
         errors = []
         root.report_callback_exception = lambda *error: errors.append(error)
         deadline = monotonic() + 8
-        stage = {"value": 0}
+        stage = {"value": -1}
 
         if failure:
             module, entry = {
@@ -47,13 +47,28 @@ def run():
                     tk.widgets["whiteboard-editor"].insert("end", "unsaved final write")
                     tk.handle_when_user_closes_main_cockpit()
                     return
-                if stage["value"] == 0 and view and view["ready"]:
+                if stage["value"] == -1 and view and view["ready"]:
+                    tree = tk.widgets["conversation-tree"]
+                    assert tuple(tree["columns"]) == ("date", "title", "hook")
+                    assert tree.master.master.grid_rowconfigure(2)["weight"] == 1
+                    scrollbar = next(child for child in tree.master.winfo_children()
+                                     if child.winfo_class() == "TScrollbar")
+                    assert tree.cget("yscrollcommand")
+                    assert scrollbar.cget("command")
+                    card = tk.widgets["resources-tree"].master
+                    button = next(child for child in card.winfo_children()
+                                  if child.winfo_class() == "TButton" and child.cget("text") == "Copy")
+                    button.invoke()
+                    stage["value"] = 0
+                elif stage["value"] == 0 and view and view["status"] == "Structure JSON copied to clipboard.":
+                    assert json.loads(tk.widgets["window"].clipboard_get()) == []
                     entry = tk.widgets["dictionary-title"]
                     entry.delete(0, "end")
                     entry.insert(0, "GUI title")
                     tk.handle_when_dictionary_editor_changes()
                     tk.widgets["whiteboard-editor"].insert("end", "GUI whiteboard")
-                    # Close must also flush a modified widget before its Tk event fires.
+                    # Submit setup before unrelated asynchronous projections arrive.
+                    tk.handle_when_whiteboard_text_changes()
                     tk.handle_when_user_creates_conversation()
                     stage["value"] = 1
                 elif stage["value"] == 1 and view and view["selected-conversation-id"]:
@@ -77,6 +92,9 @@ def run():
                     ideas.widgets["idea-editor"].destroy()
                     stage["value"] = 2
                 elif stage["value"] == 2 and view and len(view["documents"]["ideas"]["items"]) == 2:
+                    conversation = view["documents"]["conversations"]["items"][0]
+                    assert tk.widgets["conversation-tree"].item(conversation["id"], "values") == (
+                        conversation["date"], "GUI conversation", "")
                     tk.handle_when_user_opens_full_dictionary_entry()
                     editor = full_dictionary_editor.widgets["editor"]
                     editor.delete("1.0", "end")

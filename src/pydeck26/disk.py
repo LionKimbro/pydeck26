@@ -67,10 +67,21 @@ def handle_when_disk_resolves_resource_path():
     ms.set_register(("error", error))
 
 
+def handle_when_disk_resolves_structure_paths():
+    root = g["project-root"].resolve()
+    ms.set_register(("items", [
+        {"path": item.get("path", ""), "filename": item.get("filename", ""),
+         "full-path": str((root / item.get("path", "") / item.get("filename", "")).resolve()),
+         "hook": item.get("hook", "")}
+        for item in ms.get_register("items")
+    ]))
+
+
 HANDLERS = {
     "LOAD_PROJECT": handle_when_disk_loads_bound_project,
     "WRITE_DOCUMENTS": handle_when_disk_writes_project_documents,
     "READ_HISTORY": handle_when_disk_reads_whiteboard_history,
     "SNAPSHOT": handle_when_disk_creates_whiteboard_snapshot,
     "RESOURCE_PATH": handle_when_disk_resolves_resource_path,
+    "STRUCTURE_PATHS": handle_when_disk_resolves_structure_paths,
 }
