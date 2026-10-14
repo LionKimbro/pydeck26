@@ -137,7 +137,8 @@ def project_conversation_rows(document, selected_id):
     tree = widgets["conversation-tree"]
     tree.delete(*tree.get_children())
     for item in sorted(document["items"], key=lambda item: str(item.get("date") or ""), reverse=True):
-        tree.insert("", "end", iid=item["id"], values=(item.get("title") or item.get("date") or "Untitled conversation",))
+        tree.insert("", "end", iid=item["id"],
+                    values=tuple(item.get(key, "") for key in ("date", "title", "hook")))
     g["conversation-id"] = selected_id
     item = next((item for item in document["items"] if item["id"] == selected_id), {})
     if selected_id and tree.exists(selected_id):
@@ -523,8 +524,14 @@ def build_conversations_card() -> None:
     list_panel.grid(row=2, column=0, sticky="nsew", padx=(0, 8))
     list_panel.columnconfigure(0, weight=1)
     list_panel.rowconfigure(0, weight=1)
-    tree = ttk.Treeview(list_panel, columns=("title",), show="", selectmode="browse", height=5)
-    tree.column("title", width=165, stretch=True)
+    tree = ttk.Treeview(list_panel, columns=("date", "title", "hook"), show="headings", selectmode="browse", height=5)
+    for key, label, width, stretch in [
+        ("date", "Date", 88, False),
+        ("title", "Title", 170, True),
+        ("hook", "Hook", 210, True),
+    ]:
+        tree.heading(key, text=label)
+        tree.column(key, width=width, stretch=stretch)
     tree.grid(row=0, column=0, sticky="nsew")
     scrollbar = ttk.Scrollbar(list_panel, orient="vertical", command=tree.yview)
     scrollbar.grid(row=0, column=1, sticky="ns")
