@@ -6,24 +6,60 @@ import re, tkinter as tk
 from tkinter import ttk
 import uuid
 
-g={"save":None,"root":None,"document":{"items":[]}}
+g={"save":None,"root":None,"document":{"items":[]},"sort-column":None,"sort-reverse":False}
 widgets={}
+DIRECTORY_COLUMNS = [("pinned", "Pinned", 55), ("status", "Status", 110),
+                     ("date", "Date conceived", 110), ("title", "Title", 430)]
 
 def set_context(ctx: dict) -> None:
     g.update(ctx)
 
 def open_directory() -> None:
+    existing = widgets.get("directory-tree")
+    if existing is not None and existing.winfo_exists():
+        existing.winfo_toplevel().lift()
+        return
     w=tk.Toplevel(g["root"]); w.title("PyDeck 26 — Ideas Directory"); w.geometry("760x430"); w.columnconfigure(0,weight=1); w.rowconfigure(0,weight=1)
     tree=ttk.Treeview(w,columns=("pinned","status","date","title"),show="headings")
-    for key,label,width in [("pinned","Pinned",55),("status","Status",110),("date","Date conceived",110),("title","Title",430)]: tree.heading(key,text=label); tree.column(key,width=width,stretch=key=="title")
+    for key, label, width in DIRECTORY_COLUMNS:
+        tree.heading(key, text=label, command=lambda key=key: handle_when_user_sorts_ideas_directory(key))
+        tree.column(key, width=width, stretch=key=="title")
     tree.grid(row=0,column=0,sticky="nsew",padx=8,pady=8); tree.bind("<Double-Button-1>",lambda e: open_editor(tree.selection()[0] if tree.selection() else None))
     ttk.Button(w,text="New Idea",command=lambda:open_editor(None)).grid(row=1,column=0,sticky="w",padx=8,pady=(0,8)); widgets["directory-tree"]=tree; refresh_directory()
 
 def refresh_directory() -> None:
     tree=widgets.get("directory-tree")
     if not tree or not tree.winfo_exists(): return
+    selected = tree.selection()
     tree.delete(*tree.get_children())
-    for item in g["document"]["items"]: tree.insert("","end",iid=item["guid"],values=("★" if item.get("pinned") else "",item.get("status",""),item.get("date-conceived",""),item.get("title", "")))
+    items = g["document"]["items"]
+    if g["sort-column"] is not None:
+        items = sorted(items, key=get_directory_sort_key, reverse=g["sort-reverse"])
+    for item in items: tree.insert("","end",iid=item["guid"],values=("★" if item.get("pinned") else "",item.get("status",""),item.get("date-conceived",""),item.get("title", "")))
+    for key, label, width in DIRECTORY_COLUMNS:
+        arrow = (" ▼" if g["sort-reverse"] else " ▲") if key == g["sort-column"] else ""
+        tree.heading(key, text=label + arrow)
+    if selected and tree.exists(selected[0]):
+        tree.selection_set(selected[0])
+        tree.focus(selected[0])
+
+
+def get_directory_sort_key(item: dict):
+    column = g["sort-column"]
+    if column == "pinned":
+        return bool(item.get("pinned", False))
+    field = "date-conceived" if column == "date" else column
+    return str(item.get(field) or "").strip().casefold()
+
+
+def handle_when_user_sorts_ideas_directory(column: str) -> None:
+    if column == g["sort-column"]:
+        g["sort-reverse"] = not g["sort-reverse"]
+    else:
+        g["sort-column"] = column
+        g["sort-reverse"] = column == "pinned"
+    refresh_directory()
+    widgets["directory-tree"].yview_moveto(0)
 
 def open_editor(guid: str | None) -> None:
     source=find_item(guid) if guid else make_new_item()

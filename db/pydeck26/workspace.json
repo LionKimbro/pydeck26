@@ -16,21 +16,21 @@
   "rows": {
     "overview": {
       "column-count": 2,
-      "height": 230,
+      "height": 212,
       "sash-proportions": [
-        0.5
+        0.3901639344262295
       ]
     },
     "working": {
       "column-count": 2,
-      "height": 290,
+      "height": 278,
       "sash-proportions": [
         0.5
       ]
     },
     "whiteboard": {
       "column-count": 1,
-      "height": 612,
+      "height": 285,
       "sash-proportions": []
     }
   },

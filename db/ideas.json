@@ -180,7 +180,7 @@
       "guid": "c77330eb-d327-472e-aabc-b1b79e34e036",
       "title": "Image Panels",
       "description": "Make it so you can include an image directly into a panel.",
-      "status": "conceived",
+      "status": "implemented",
       "date-conceived": "2026-09-08",
       "date-entered": "2026-09-08",
       "notes": "",
@@ -190,7 +190,7 @@
         "diagram",
         "illustration"
       ],
-      "pinned": true
+      "pinned": false
     }
   ]
 }
