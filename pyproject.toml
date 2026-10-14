@@ -11,6 +11,8 @@ license = {text = "CC0-1.0"}
 readme = "README.md"
 dependencies = [
     "lionscliapp",
+    "Pillow>=10.0",
+    "tkinterdnd2>=0.4.4",
 ]
 
 [project.scripts]

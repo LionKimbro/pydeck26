@@ -1,6 +1,9 @@
 """Disk machine: the GUI application's sole filesystem boundary."""
 
-from . import machine, mobile_stacks as ms, storage
+from pathlib import Path
+from uuid import uuid4
+
+from . import machine, mobile_stacks as ms, storage, workspace
 from .project_snapshot import read_project_snapshot
 
 g = {"project-root": None}  # Installed before workers start; fixed for the process.
@@ -79,6 +82,51 @@ def handle_when_disk_resolves_structure_paths():
     ]))
 
 
+def get_image_asset_path(asset):
+    if not workspace.is_image_asset_reference(asset):
+        raise ValueError("Invalid image asset reference")
+    root = storage.get_pydeck_data_dir(g["project-root"]).resolve()
+    path = (root / asset).resolve()
+    if not path.is_relative_to(root):
+        raise ValueError("Image asset must remain inside PyDeck storage")
+    return path
+
+
+def handle_when_disk_reads_image_source():
+    ms.set_register(("image-error", None))
+    try:
+        ms.set_register(("image-bytes", Path(ms.get_register("source")["path"]).read_bytes()))
+    except OSError as error:
+        ms.set_register(("image-error", str(error)))
+
+
+def handle_when_disk_writes_image_asset():
+    extension = ms.get_register("image-extension")
+    if extension not in (".jpg", ".png", ".gif"):
+        raise ValueError("Image worker supplied an invalid extension")
+    asset = f"assets/image-{uuid4().hex}{extension}"
+    path = get_image_asset_path(asset)
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    ms.set_register(("image-error", None))
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temporary.write_bytes(ms.get_register("image-bytes"))
+        temporary.replace(path)
+    except OSError as error:
+        temporary.unlink(missing_ok=True)
+        ms.set_register(("image-error", str(error)))
+        return
+    ms.set_register(("image-asset", asset))
+
+
+def handle_when_disk_reads_image_asset():
+    ms.set_register(("image-error", None))
+    try:
+        ms.set_register(("image-bytes", get_image_asset_path(ms.get_register("image-asset")).read_bytes()))
+    except (OSError, ValueError) as error:
+        ms.set_register(("image-error", str(error)))
+
+
 HANDLERS = {
     "LOAD_PROJECT": handle_when_disk_loads_bound_project,
     "WRITE_DOCUMENTS": handle_when_disk_writes_project_documents,
@@ -86,4 +134,7 @@ HANDLERS = {
     "SNAPSHOT": handle_when_disk_creates_whiteboard_snapshot,
     "RESOURCE_PATH": handle_when_disk_resolves_resource_path,
     "STRUCTURE_PATHS": handle_when_disk_resolves_structure_paths,
+    "READ_IMAGE_SOURCE": handle_when_disk_reads_image_source,
+    "WRITE_IMAGE_ASSET": handle_when_disk_writes_image_asset,
+    "READ_IMAGE_ASSET": handle_when_disk_reads_image_asset,
 }

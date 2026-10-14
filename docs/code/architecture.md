@@ -11,6 +11,9 @@ Today's `docs/architecture-review.md` and current `src/today` implementation.
 | `core.py` | Working project documents, dirty generations, selected conversation, Whiteboard history cursor, semantic reducer events and effects | Core worker |
 | `mem.py` | Canonical project documents and revision; acceptance and persistence scheduling | Mem worker |
 | `disk.py` | Project loading, document writes, historical snapshot reads/creation, filesystem path validation | Disk worker |
+| `image.py` | Clipboard acquisition, image validation, EXIF correction, fitted RGBA preview preparation | Image worker |
+| `image_core.py` | Import/preview request tokens, presentation errors, working drawing edits | Core worker |
+| `image_ui.py` | Native image input controls/drop reception, Tk image objects, normalized drawing drafts | Main thread |
 | `machine.py` | Permanent runtime registry, thread-local runtime selection, supervised workers, routing, lifecycle and fatal latch | Shared mechanics |
 | `mobile_stacks.py` | Traveling continuation frames and registers | Accessed through each worker's runtime |
 | `main.py` | Project-root binding, queues, startup, main loop and final joins | Main thread |
@@ -19,7 +22,7 @@ Today's `docs/architecture-review.md` and current `src/today` implementation.
 `cockpit.py` preserves the CLI's launch entrypoint. `framing.py` supplies the
 Today-style outer workspace around the existing project instruments in `tk.py`.
 There is no dependency on Today; PyDeck retains project-local records rather
-than adopting Today's day bundles or unrelated image/To-Do panel features.
+than adopting Today's day bundles. Its image panel behavior follows Today.
 
 ## Workspace and hosting
 
@@ -80,7 +83,10 @@ position. Pending drafts are submitted before switching tabs or changing
 hosting. Pending Text modification events are also flushed before asynchronous
 projections can overwrite them.
 
-There are four permanent queues: three worker inboxes and Core-to-Tk commands.
+There are five permanent queues: Core, Mem, Disk, Image, and Core-to-Tk commands.
+Image is one supervised permanent worker in PyDeck, rather than Today's dynamic
+per-operation instances. Its traveling stacks still continue through Disk and
+return to the same Image machine; CPU work never enters the Tk thread.
 Tk sends plain semantic events. Core translates returned Mobile Stacks into
 copied reducer events, reduces its local event list, and dispatches effects.
 The reducer mutates module-owned state; it is not a pure state-in/state-out
@@ -89,6 +95,51 @@ function. Effects create stacks or emit declarative Tk commands.
 Unlike Today, Tk drains commands with a 20 ms main-thread callback rather than
 a worker-generated Tk virtual event. Workers never call Tk APIs or receive Tk
 objects. The same callback observes fatal worker failure independently of Core.
+
+## Image panels
+
+`[+ Image]` creates an independent workspace panel with an asset reference and
+normalized red-pen strokes. Import uses:
+
+```text
+Tk -> Core -> Image -> Disk (source read, when needed) -> Image (validate)
+   -> Disk (asset write) -> Image -> Core (token check) -> Mem -> Disk
+```
+
+Tk owns native browse/drop controls and Tcl list decoding of paths containing
+spaces. Clipboard acquisition and PNG serialization of clipboard pixels happen
+in Image. All file reads/writes happen in Disk. JPEG/PNG/GIF format validation
+uses actual content, not the original filename extension. Imports copy source
+bytes without changing the original file.
+
+Assets use generated `assets/image-<uuid>.jpg|png|gif` references relative to
+`db/pydeck26`. Disk validates their shape and resolved containment, publishes
+them via temporary-file replacement, and returns expected I/O errors as data.
+Clearing removes the reference and drawing; panel deletion removes the record.
+Both retain asset files, and obsolete import completion may leave an orphan.
+There is no automatic asset garbage collector.
+
+Preview requests travel Image -> Disk -> Image -> Core -> Tk. Image decodes the
+first frame, applies EXIF orientation, fits without upscaling, and returns RGBA
+bytes. Only Tk constructs and retains `PhotoImage`. Geometry requests debounce
+for 100 ms. Core rejects obsolete request tokens/assets; Tk also rejects results
+for a destroyed host or outdated canvas bounds. Pixels never enter Mem records
+or workspace JSON. Expected bad inputs/missing assets produce panel errors,
+while broken worker invariants still trigger fatal application shutdown.
+
+Red pen is a separate Canvas layer. Stroke points are normalized to the fitted
+image and pen width to its shorter dimension; resizing reprojects this data.
+Completed strokes reach Core immediately and remain working until the 60-second
+idle save, project save, layout transition, or normal close. Before close or a
+layout rebuild, Tk finishes any active stroke. Originals remain byte-for-byte
+unchanged. Export flattening and GIF animation are not implemented, matching
+Today's current boundaries.
+
+Normal shutdown waits for outstanding Image continuations. Results arriving
+after the semantic close request are discarded; unfinished imports are not
+promised as successful commits. Main joins Image after Core and before Disk.
+Fatal failure wakes Image through the same runtime exception boundary as the
+other permanent workers.
 
 ## Loading and continuation ownership
 
@@ -148,6 +199,7 @@ Disk retains existing locations and formats:
 - `db/pydeck26/resources.json`
 - `db/ideas.json`
 - `db/pydeck26/workspace.json`
+- `db/pydeck26/assets/image-<uuid>.jpg|png|gif`
 - `docs/whiteboard/<local-timestamp>.txt`
 
 Mutable files use atomic temporary-file replacement. History files use exclusive
@@ -173,7 +225,7 @@ semantic shutdown request. Core rejects subsequent user edits, waits for all
 outstanding continuations, and persists its latest dirty generations. Only
 then does it retire, stop Mem, and tell Tk it may destroy the root.
 
-Main joins Core, joins Mem, queues Disk's sentinel after its producers stop,
+Main joins Core, Image, and Mem, queues Disk's sentinel after its producers stop,
 then joins Disk. Only the main thread joins/reaps workers. The same orchestration
 is used by GUI execution and worker tests.
 
@@ -212,3 +264,10 @@ events, including suppression of ordinary unhosting, deletion from multiple
 tabs, persistence across restart, and explicit project-instrument recreation.
 Worker tests hold an earlier save during deletion and verify that its eventual
 return and an obsolete draft cannot resurrect the deleted panel.
+
+`test_image_panels.py` checks supported formats, clipboard acquisition, EXIF,
+fitted RGBA pixels, invalid input, reference containment, stale imports/previews,
+worker failure, and immutable source/assets. `test_gui_image.py` runs a real-Tk
+roundtrip: dropdown creation, browse callback, fit, red-pen strokes, resize,
+close during an active stroke, restart, clear, and a dropped path with spaces.
+Clipboard interoperability and physical OS drag gestures remain manual checks.

@@ -10,7 +10,7 @@
         "working",
         "whiteboard"
       ],
-      "scroll-position": 0.23225806451612904
+      "scroll-position": 0.0
     }
   ],
   "rows": {
@@ -30,7 +30,7 @@
     },
     "whiteboard": {
       "column-count": 1,
-      "height": 351,
+      "height": 612,
       "sash-proportions": []
     }
   },

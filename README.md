@@ -8,6 +8,8 @@ The cockpit has tabs and configurable rows. Each row can contain one, two, or th
 
 Only empty slots show the chooser. Occupied slots place **×** at the right end of the panel's title row; unhosting reveals the chooser again.
 
+Choose **[+ Image]** for an image panel. Browse for a JPEG, PNG, or GIF, paste an image or one image file from the clipboard, or drop a file onto the empty canvas. Previews fit the available space without upscaling. **Red pen** adds drawing marks; **Clear image** returns to the import controls. Drawings survive resizing and restart. GIFs show their first frame.
+
 Use **+ Tab**, **Rename tab**, **Remove tab**, and **+ Row** in the toolbar. A row's rail offers **x1/x2/x3**, **↑/↓** to reorder it, and **×** to remove it. Drag column dividers to change widths and the blue edge beneath a row to change its height. Tabs scroll vertically and remember their position. Removing tabs or rows preserves their panels so they can be hosted again.
 
 ## Run
@@ -37,6 +39,8 @@ docs/whiteboard/<local-timestamp>.txt
 The optional dictionary lives in `db/pydeck26/dictionary-entry.json`; ideas live in `db/ideas.json`. Their files are created when saved.
 
 Layout, hosting, selected tab, sizes, scroll positions, and independent Notes live in `db/pydeck26/workspace.json`. Existing projects start with a Cockpit tab matching the original five-panel layout; no conversion of the existing project records is needed. Layout changes request persistence immediately; Notes text saves with Ctrl+S, a layout transition, or normal close.
+
+Imported image originals are copied to `db/pydeck26/assets/`. Image references and red-pen strokes live in the workspace file. Image imports and clearing save immediately; drawing edits save after 60 seconds idle, Ctrl+S, layout changes, or normal close. Clearing or deleting an image panel retains its asset file, as in Today.
 
 Snapshots are immutable. Editing recalled history makes a new current Whiteboard and retains the previous current text as a virtual snapshot. Only Current can be snapshotted to disk.
 

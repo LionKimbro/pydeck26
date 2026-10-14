@@ -14,6 +14,7 @@ rows = {}
 slots = {}
 PANEL_CREATION_CHOICES = (
     {"label": "[+ Notes]", "event": {"type": "CREATE_NOTES"}},
+    {"label": "[+ Image]", "event": {"type": "CREATE_IMAGE"}},
 )
 
 

@@ -41,7 +41,7 @@ def stop(commands):
 
 def finish():
     # Assert termination with a deadline before calling the production joins.
-    for name in ("CORE", "MEM"):
+    for name in ("CORE", "MEM", "IMAGE"):
         machine.machines[name]["thread"].join(5)
         assert not machine.machines[name]["thread"].is_alive()
     machine.machines["DISK"]["inbox"].put(None)

@@ -1,6 +1,7 @@
 """Project workspace records: panel identity is independent of tab/row hosting."""
 
 from uuid import uuid4
+import re
 
 PROJECT_PANELS = {
     "project-structure": "STRUCTURE", "project-dictionary": "DICTIONARY",
@@ -11,7 +12,7 @@ LAYOUT_EVENTS = {
     "CREATE_TAB", "SELECT_TAB", "RENAME_TAB", "DELETE_TAB", "ADD_ROW", "DELETE_ROW",
     "MOVE_ROW", "SET_ROW_COLUMNS", "SET_ROW_HEIGHT", "SET_SASH_PROPORTIONS",
     "SET_TAB_SCROLL", "HOST_PANEL", "UNHOST_PANEL", "CREATE_NOTES", "RENAME_PANEL",
-    "DELETE_PANEL", "CREATE_PROJECT_PANEL",
+    "DELETE_PANEL", "CREATE_PROJECT_PANEL", "CREATE_IMAGE",
 }
 
 
@@ -151,7 +152,7 @@ def apply_layout_event(document, event):
         if tab is None or not isinstance(value, (int, float)) or not 0 <= value <= 1:
             raise ValueError("Invalid tab scroll position.")
         tab["scroll-position"] = value
-    elif kind in {"HOST_PANEL", "UNHOST_PANEL", "CREATE_NOTES", "CREATE_PROJECT_PANEL"}:
+    elif kind in {"HOST_PANEL", "UNHOST_PANEL", "CREATE_NOTES", "CREATE_PROJECT_PANEL", "CREATE_IMAGE"}:
         owner = get_tab_for_position(document, target)
         if target not in document["positions"] or owner is None:
             raise ValueError("That slot is no longer available.")
@@ -163,6 +164,10 @@ def apply_layout_event(document, event):
                 panel_id = uuid4().hex
                 document["panels"][panel_id] = {"id": panel_id, "type": "NOTES", "label": "Notes",
                                                 "source": "workspace", "text": ""}
+            elif kind == "CREATE_IMAGE":
+                panel_id = uuid4().hex
+                document["panels"][panel_id] = {"id": panel_id, "type": "IMAGE", "label": "Image",
+                    "source": "workspace", "image-asset": None, "image-strokes": []}
             elif kind == "CREATE_PROJECT_PANEL":
                 panel_id = next((key for key, value in PROJECT_PANELS.items() if value == event["panel-type"]), None)
                 if panel_id is None or panel_id in document["panels"]:
@@ -210,8 +215,16 @@ def validate_workspace(document):
     for panel_id, panel in panels.items():
         if panel.get("id") != panel_id or not isinstance(panel.get("label"), str):
             raise ValueError("Invalid panel identity.")
-        if panel_id not in PROJECT_PANELS and (panel.get("type") != "NOTES" or not isinstance(panel.get("text"), str)):
-            raise ValueError("Invalid notes panel.")
+        if panel_id not in PROJECT_PANELS:
+            if panel.get("type") == "NOTES" and isinstance(panel.get("text"), str):
+                pass
+            elif panel.get("type") == "IMAGE":
+                asset = panel.get("image-asset")
+                if asset is not None and not is_image_asset_reference(asset):
+                    raise ValueError("Invalid image asset reference.")
+                validate_image_strokes(panel.get("image-strokes", []))
+            else:
+                raise ValueError("Invalid workspace panel.")
     for tab in tabs:
         if tab["id"] in tab_ids or not isinstance(tab["label"], str) or not 0 <= tab.get("scroll-position", 0) <= 1:
             raise ValueError("Invalid tab identity or scroll position.")
@@ -239,3 +252,21 @@ def validate_workspace(document):
                     hosted.add(panel_id)
     if set(rows) != row_ids or set(positions) != expected_positions or document["selected-tab-id"] not in tab_ids:
         raise ValueError("Workspace contains orphaned rows/slots or an invalid selection.")
+
+
+def is_image_asset_reference(asset):
+    return isinstance(asset, str) and re.fullmatch(r"assets/image-[0-9a-f]{32}\.(jpg|png|gif)", asset) is not None
+
+
+def validate_image_strokes(strokes):
+    if not isinstance(strokes, list):
+        raise ValueError("Image strokes must be a list.")
+    for stroke in strokes:
+        if (not isinstance(stroke, dict) or stroke.get("color") != "#FF3030"
+                or not isinstance(stroke.get("width"), (int, float)) or not 0 < stroke["width"] <= 10
+                or not isinstance(stroke.get("points"), list) or not stroke["points"]):
+            raise ValueError("Invalid image stroke.")
+        for point in stroke["points"]:
+            if (not isinstance(point, list) or len(point) != 2
+                    or any(not isinstance(value, (int, float)) or not 0 <= value <= 1 for value in point)):
+                raise ValueError("Invalid normalized image point.")

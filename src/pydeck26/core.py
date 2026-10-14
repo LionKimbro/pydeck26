@@ -7,7 +7,7 @@ from pathlib import Path
 import re
 from uuid import uuid4
 
-from . import machine, mobile_stacks as ms, workspace
+from . import image_core, machine, mobile_stacks as ms, workspace
 
 g = {
     "revision": 0, "ready": False, "initialized": False, "seq": 0,
@@ -27,6 +27,7 @@ effects = []
 
 
 def initialize_core_state():
+    image_core.initialize_image_state()
     g.update({"revision": 0, "ready": False, "initialized": False, "seq": 0,
               "snapshot": None, "selected-conversation-id": None,
               "view-index": 0, "view-text": "", "virtual-snapshot": None,
@@ -60,6 +61,7 @@ def publish_view():
         "selected-conversation-id": g["selected-conversation-id"],
         "view-index": g["view-index"], "view-text": g["view-text"],
         "history-count": len(get_history_items()), "status": g["status"],
+        "image-states": image_core.get_rendering(),
     }})
 
 
@@ -162,11 +164,15 @@ def reduce_event(event):
         machine.shutdown_started.set()
         if g["initialized"]:
             request_commit(dirty)
+    elif kind in {"IMAGE_IMPORTED", "IMAGE_PREVIEW_RETURNED"}:
+        image_core.reduce_image_event(event)
     elif not g["ready"] or g["closing"]:
         finish_close_when_saved()
         return
     elif kind == "SAVE":
         request_commit(dirty | {"whiteboard", "workspace"})
+    elif kind in image_core.EVENTS:
+        image_core.reduce_image_event(event)
     elif kind in workspace.LAYOUT_EVENTS:
         proposal = deepcopy(documents["workspace"])
         try:
@@ -177,6 +183,7 @@ def reduce_event(event):
         else:
             if proposal != documents["workspace"]:
                 documents["workspace"] = proposal
+                image_core.forget_deleted_panels(proposal["panels"])
                 touch_document("workspace")
                 request_commit({"workspace"})
     elif kind == "NOTES_EDIT":
@@ -339,6 +346,7 @@ def dispatch_effect(effect):
         machine.route_current_stack()
     elif effect["type"] == "STOP":
         machine.machines["MEM"]["inbox"].put(None)
+        machine.machines["IMAGE"]["inbox"].put(None)
         machine.request_machine_retirement()
         machine.machines["CORE"]["commands"].put({"type": "SHUTDOWN_COMPLETE"})
 
@@ -353,6 +361,7 @@ def handle_when_core_receives_stack_result():
 HANDLERS = {name: handle_when_core_receives_stack_result for name in (
     "PROJECT_RETURNED", "COMMIT_RETURNED", "HISTORY_RETURNED",
     "SNAPSHOT_RETURNED", "RESOURCE_RETURNED", "STRUCTURE_RETURNED",
+    "IMAGE_IMPORTED", "IMAGE_PREVIEW_RETURNED",
 )}
 
 

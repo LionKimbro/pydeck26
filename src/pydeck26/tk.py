@@ -10,7 +10,7 @@ import webbrowser
 
 import lionscliapp as app
 
-from . import description_editor, framing, full_dictionary_editor, ideas, machine, resource_editor
+from . import description_editor, framing, full_dictionary_editor, ideas, image_ui, machine, resource_editor
 
 g = {"project-root": None, "commands": None, "seq": 0, "view": None,
      "projecting": False, "closing": False, "conversation-id": None,
@@ -62,6 +62,8 @@ def handle_when_polling_core_commands():
             elif command["type"] == "COPY_TEXT":
                 copy_text_to_clipboard(command["text"])
                 send({"type": "STATUS", "text": "Structure JSON copied to clipboard."})
+            elif command["type"] == "SET_IMAGE_PREVIEW":
+                image_ui.apply_preview(command)
     except Empty:
         pass
     root.after(20, handle_when_polling_core_commands)
@@ -76,6 +78,7 @@ def project_core_state(view):
             return
         documents = view["documents"]
         framing.project_workspace(documents["workspace"])
+        image_ui.project_panels(documents["workspace"], view.get("image-states", {}))
         identity = documents["dictionary"]["identity"]
         title = identity.get("title") or identity.get("name") or g["project-root"].name
         widgets["title"].configure(text=f"PyDeck 26: {title}")
@@ -363,6 +366,7 @@ def handle_when_user_initializes_project():
 
 
 def flush_editor_drafts():
+    image_ui.flush_strokes()
     handle_when_dictionary_editor_changes()
     handle_when_conversation_editor_changes()
     handle_when_whiteboard_text_changes()
@@ -379,6 +383,7 @@ def flush_pending_text_edits():
 
 
 def clear_panel_widgets():
+    image_ui.clear_panels()
     for key in list(widgets):
         if key.startswith(("dictionary-", "conversation-", "resources-", "ideas-", "whiteboard-", "snapshot-")) or key in {"cockpit-surface", "initialization-panel"}:
             del widgets[key]
@@ -388,6 +393,8 @@ def clear_panel_widgets():
 
 def build_hosted_panel(details):
     panel = details["panel"]
+    if panel["type"] == "IMAGE":
+        return image_ui.build_panel(details)
     widgets["cockpit-surface"] = details["parent"]
     builders = {"STRUCTURE": build_structure_card, "DICTIONARY": build_dictionary_card,
                 "CONVERSATIONS": build_conversations_card, "IDEAS": build_ideas_card,
@@ -482,6 +489,7 @@ def realize_main_cockpit_window(root: tk.Tk) -> None:
     window.columnconfigure(0, weight=1)
     window.rowconfigure(1, weight=1)
     widgets["window"] = window
+    image_ui.initialize_context({"send": send, "window": window, "is-closing": lambda: g["closing"]})
     window.bind_all("<Control-s>", handle_when_user_uses_project_save_shortcut)
     build_masthead(window)
     build_cockpit_surface(window)
