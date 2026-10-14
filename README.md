@@ -10,7 +10,7 @@ Only empty slots show the chooser. Occupied slots place **×** at the right end 
 
 Choose **[+ Image]** for an image panel. Browse for a JPEG, PNG, or GIF, paste an image or one image file from the clipboard, or drop a file onto the empty canvas. Previews fit the available space without upscaling. **Red pen** adds drawing marks; **Clear image** returns to the import controls. Drawings survive resizing and restart. GIFs show their first frame.
 
-Use **+ Tab**, **Rename tab**, **Remove tab**, and **+ Row** in the toolbar. A row's rail offers **x1/x2/x3**, **↑/↓** to reorder it, and **×** to remove it. Drag column dividers to change widths and the blue edge beneath a row to change its height. Tabs scroll vertically and remember their position. Removing tabs or rows preserves their panels so they can be hosted again.
+Use **+ Tab**, **Rename tab**, and **Remove tab** in the toolbar, and **+ Add row** at the bottom of the tab. A row's rail offers **x1/x2/x3**, **↑/↓** to reorder it, and **×** to remove it. Drag column dividers to change widths and the blue edge beneath a row to change its height. Tabs scroll vertically and remember their position. Removing tabs or rows preserves their panels so they can be hosted again.
 
 ## Run
 

@@ -29,8 +29,7 @@ def initialize_framing(context):
     toolbar.pack(fill="x")
     for label, handler in (("+ Tab", handle_when_user_creates_tab),
                            ("Rename tab", handle_when_user_renames_tab),
-                           ("Remove tab", handle_when_user_removes_tab),
-                           ("+ Row", handle_when_user_adds_row)):
+                           ("Remove tab", handle_when_user_removes_tab)):
         ttk.Button(toolbar, text=label, command=handler).pack(side="left", padx=(0, 6))
     ttk.Label(toolbar, text="Choose panels in each slot · drag column dividers and row edges").pack(side="left", padx=8)
     notebook = ttk.Notebook(parent)
