@@ -70,6 +70,18 @@ def get_resources_path(root: Path) -> Path:
     return get_pydeck_data_dir(root) / "resources.json"
 
 
+def load_workspace(root: Path) -> dict | None:
+    """Read the optional framing document without creating it during startup."""
+    path = get_pydeck_data_dir(root) / "workspace.json"
+    return json.loads(path.read_text(encoding="utf-8")) if path.is_file() else None
+
+
+def save_workspace(root: Path, document: dict) -> None:
+    """Persist layout and independent notes while preserving extensions."""
+    write_text_atomic(get_pydeck_data_dir(root) / "workspace.json",
+                      json.dumps(document, indent=2, ensure_ascii=False) + "\n")
+
+
 def load_ideas(root: Path) -> dict:
     """Read ideas without creating an empty file during startup."""
     path = get_ideas_path(root)

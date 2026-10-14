@@ -1,0 +1,86 @@
+{
+  "version": 1,
+  "selected-tab-id": "cockpit",
+  "tabs": [
+    {
+      "id": "cockpit",
+      "label": "Cockpit",
+      "row-ids": [
+        "overview",
+        "working",
+        "whiteboard"
+      ],
+      "scroll-position": 0.23225806451612904
+    }
+  ],
+  "rows": {
+    "overview": {
+      "column-count": 2,
+      "height": 230,
+      "sash-proportions": [
+        0.5
+      ]
+    },
+    "working": {
+      "column-count": 2,
+      "height": 290,
+      "sash-proportions": [
+        0.5
+      ]
+    },
+    "whiteboard": {
+      "column-count": 1,
+      "height": 351,
+      "sash-proportions": []
+    }
+  },
+  "positions": {
+    "overview/column-1": {
+      "panel-id": "project-structure"
+    },
+    "overview/column-2": {
+      "panel-id": "project-dictionary"
+    },
+    "working/column-1": {
+      "panel-id": "project-conversations"
+    },
+    "working/column-2": {
+      "panel-id": "project-ideas"
+    },
+    "whiteboard/column-1": {
+      "panel-id": "project-whiteboard"
+    }
+  },
+  "panels": {
+    "project-structure": {
+      "id": "project-structure",
+      "type": "STRUCTURE",
+      "label": "Structure",
+      "source": "project"
+    },
+    "project-dictionary": {
+      "id": "project-dictionary",
+      "type": "DICTIONARY",
+      "label": "Dictionary",
+      "source": "project"
+    },
+    "project-conversations": {
+      "id": "project-conversations",
+      "type": "CONVERSATIONS",
+      "label": "Conversations",
+      "source": "project"
+    },
+    "project-ideas": {
+      "id": "project-ideas",
+      "type": "IDEAS",
+      "label": "Ideas",
+      "source": "project"
+    },
+    "project-whiteboard": {
+      "id": "project-whiteboard",
+      "type": "WHITEBOARD",
+      "label": "Whiteboard",
+      "source": "project"
+    }
+  }
+}

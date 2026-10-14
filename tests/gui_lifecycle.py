@@ -9,7 +9,7 @@ import tkinter
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from pydeck26 import core, disk, full_dictionary_editor, ideas, machine, main, mem, tk
+from pydeck26 import core, disk, framing, full_dictionary_editor, ideas, machine, main, mem, tk
 from pydeck26.storage import initialize_project, load_whiteboard, save_dictionary_entry
 
 
@@ -55,9 +55,18 @@ def run():
                                      if child.winfo_class() == "TScrollbar")
                     assert tree.cget("yscrollcommand")
                     assert scrollbar.cget("command")
-                    card = tk.widgets["resources-tree"].master
-                    button = next(child for child in card.winfo_children()
+                    header = framing.slots["overview/column-1"]["unhost-button"].master
+                    button = next(child for child in header.winfo_children()
                                   if child.winfo_class() == "TButton" and child.cget("text") == "Copy")
+                    assert all("selector" not in slot for slot in framing.slots.values())
+                    for slot in framing.slots.values():
+                        close = slot["unhost-button"]
+                        title = next(child for child in close.master.winfo_children()
+                                     if child.winfo_class() == "Label")
+                        root.update_idletasks()
+                        assert close.winfo_y() < title.winfo_y() + title.winfo_height()
+                        assert close.winfo_x() > title.winfo_x() + title.winfo_width()
+                    assert framing.slots["overview/column-1"]["unhost-button"].winfo_x() > button.winfo_x()
                     button.invoke()
                     stage["value"] = 0
                 elif stage["value"] == 0 and view and view["status"] == "Structure JSON copied to clipboard.":

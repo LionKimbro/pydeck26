@@ -7,7 +7,7 @@ from time import monotonic
 
 import pytest
 
-from pydeck26 import core, disk, machine, main, mem, mobile_stacks
+from pydeck26 import core, disk, machine, main, mem, mobile_stacks, workspace
 from pydeck26.storage import initialize_project, load_whiteboard
 
 
@@ -302,4 +302,67 @@ def test_resource_open_rejects_path_outside_project(project):
     root, commands = project
     send({"type": "RESOURCE_ACTION", "item": {"path": "..", "filename": "outside"}, "action": "OPEN_PATH"})
     state(commands, lambda view: view["status"] == "Resource path must remain inside this project.")
+    stop(commands)
+
+
+def test_workspace_roundtrip_preserves_notes_layout_and_existing_project_files(project):
+    root, commands = project
+    source_paths = [root / "db/pydeck26" / name for name in ("dictionary-entry.json", "resources.json", "conversations.json")]
+    original_files = {path: path.read_bytes() if path.exists() else None for path in source_paths}
+    send({"type": "CREATE_TAB", "label": "Workbench"})
+    view = state(commands, lambda view: view["documents"]["workspace"]["selected-tab-id"] != "cockpit")
+    document = view["documents"]["workspace"]
+    tab_id = document["selected-tab-id"]
+    row_id = workspace.get_tab(document, tab_id)["row-ids"][0]
+    send({"type": "SET_ROW_COLUMNS", "row-id": row_id, "column-count": 3})
+    send({"type": "HOST_PANEL", "position-id": workspace.position_id(row_id, 1), "panel-id": "project-whiteboard"})
+    send({"type": "CREATE_NOTES", "position-id": workspace.position_id(row_id, 2)})
+    view = state(commands, lambda view: view["documents"]["workspace"]["positions"].get(workspace.position_id(row_id, 2), {}).get("panel-id") is not None)
+    panel_id = view["documents"]["workspace"]["positions"][workspace.position_id(row_id, 2)]["panel-id"]
+    send({"type": "NOTES_EDIT", "panel-id": panel_id, "text": "independent writing"})
+    send({"type": "SET_ROW_HEIGHT", "row-id": row_id, "height": 380})
+    send({"type": "SET_SASH_PROPORTIONS", "row-id": row_id, "proportions": [0.2, 0.65]})
+    stop(commands)
+
+    stored = json.loads((root / "db/pydeck26/workspace.json").read_text())
+    assert stored["rows"][row_id]["height"] == 380
+    assert stored["rows"][row_id]["sash-proportions"] == [0.2, 0.65]
+    assert stored["panels"][panel_id]["text"] == "independent writing"
+    assert all((path.read_bytes() if path.exists() else None) == original for path, original in original_files.items())
+    commands = main.start_project_workers(root)
+    restored = state(commands, lambda view: view["ready"])
+    assert restored["documents"]["workspace"] == stored
+    restored["documents"]["workspace"]["panels"][panel_id]["text"] = "not shared"
+    assert mem.documents["workspace"]["panels"][panel_id]["text"] == "independent writing"
+    stop(commands)
+
+
+
+def test_delete_during_save_cannot_resurrect_a_panel(project, monkeypatch):
+    root, commands = project
+    send({"type": "CREATE_NOTES", "position-id": "overview/column-1"})
+    view = state(commands, lambda view: view["status"] == "Project state saved.")
+    panel_id = view["documents"]["workspace"]["positions"]["overview/column-1"]["panel-id"]
+    started, release = Event(), Event()
+    original = disk.HANDLERS["WRITE_DOCUMENTS"]
+
+    def held_write():
+        started.set()
+        assert release.wait(5)
+        original()
+
+    monkeypatch.setitem(disk.HANDLERS, "WRITE_DOCUMENTS", held_write)
+    send({"type": "NOTES_EDIT", "panel-id": panel_id, "text": "in flight"})
+    send({"type": "SAVE"})
+    assert started.wait(5)
+    send({"type": "DELETE_PANEL", "panel-id": panel_id})
+    state(commands, lambda view: panel_id not in view["documents"]["workspace"]["panels"])
+    send({"type": "NOTES_EDIT", "panel-id": panel_id, "text": "obsolete draft"})
+    release.set()
+    stop(commands)
+    stored = json.loads((root / "db/pydeck26/workspace.json").read_text())
+    assert panel_id not in stored["panels"]
+    commands = main.start_project_workers(root)
+    view = state(commands, lambda view: view["ready"])
+    assert panel_id not in view["documents"]["workspace"]["panels"]
     stop(commands)

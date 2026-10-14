@@ -1,13 +1,13 @@
 # PyDeck 26 machine architecture
 
-This is the current implementation map, updated 2026-10-13. The reference is
+This is the current implementation map, updated 2026-10-14. The reference is
 Today's `docs/architecture-review.md` and current `src/today` implementation.
 
 ## Ownership
 
 | Module | Owns | Execution |
 | --- | --- | --- |
-| `tk.py` and editor modules | Widgets, bindings, native dialogs, editor drafts, independent presentation records | Main thread |
+| `tk.py`, `framing.py`, and editor modules | Widgets, bindings, tab/row/slot framing, native dialogs, editor drafts, independent presentation records | Main thread |
 | `core.py` | Working project documents, dirty generations, selected conversation, Whiteboard history cursor, semantic reducer events and effects | Core worker |
 | `mem.py` | Canonical project documents and revision; acceptance and persistence scheduling | Mem worker |
 | `disk.py` | Project loading, document writes, historical snapshot reads/creation, filesystem path validation | Disk worker |
@@ -16,9 +16,69 @@ Today's `docs/architecture-review.md` and current `src/today` implementation.
 | `main.py` | Project-root binding, queues, startup, main loop and final joins | Main thread |
 | `storage.py` | Existing synchronous text/JSON primitives; used by Disk during GUI execution and by the standalone CLI init command | Disk or CLI |
 
-`cockpit.py` preserves the CLI's launch entrypoint. The existing visual cockpit
-is retained in `tk.py`; panel types, tabs, and arbitrary placement are future
-work. There is no new dependency on Today.
+`cockpit.py` preserves the CLI's launch entrypoint. `framing.py` supplies the
+Today-style outer workspace around the existing project instruments in `tk.py`.
+There is no dependency on Today; PyDeck retains project-local records rather
+than adopting Today's day bundles or unrelated image/To-Do panel features.
+
+## Workspace and hosting
+
+`workspace.py` describes plain tab, row, position, and panel records. The
+`workspace` document is canonical in Mem, a working copy in Core, and an
+independent presentation copy in Tk. Mem validates it when loading and accepting
+commits. Core applies semantic transitions to an independent proposal and
+reports expected invalid operations as status data, without publishing a
+partially changed layout.
+
+Tabs own ordered row identities. Rows carry a column count (one, two, or three),
+pixel height, and cumulative column-divider proportions. A position identity is
+derived from its row and column: `<row-id>/column-<n>`. Positions host panel IDs
+or null. Changing hosting changes presentation, not the panel record.
+
+Structure, Dictionary, Conversations, Ideas, and Whiteboard have stable
+project-panel identities and continue to use their existing data files. Notes
+panels have independent IDs and text within the workspace document. The same
+panel may be hosted on different tabs, but at most once in any given tab.
+Shrinking a row unhosts discarded slots; removing a row or tab removes only
+its layout records. All panel records survive and remain available to host.
+The final tab cannot be removed; a tab may have no rows and offers Add Row.
+
+A slot's dropdown combines existing panel choices with creation choices such
+as `[+ Notes]`. `framing.PANEL_CREATION_CHOICES` declares the creation commands
+in one place. No separate Notes button is needed. Missing project instruments
+offer explicit `[+ Type]` choices, so deleting one does not cause automatic
+resurrection at startup.
+Only empty slots construct a chooser. Hosted panel builders return their title
+row, where framing inserts the × control at the far right, alongside existing
+Copy/Snapshot/Rename actions. There is no separate slot header above a hosted
+panel. Unhosting rebuilds the slot as an empty chooser.
+
+Ordinary × submits `UNHOST_PANEL`. Ctrl-click × submits `DELETE_PANEL` and
+suppresses the ordinary button press/release behavior. Deletion removes the
+panel record and all hosting references across every tab. Notes payloads are
+owned by that record and are deleted with it. Project instruments refer to
+external project-owned records: deleting their workspace panel does not erase
+the dictionary, conversations, ideas, resources, Whiteboard, or historical
+files. Explicit recreation attaches a fresh instrument record to those files.
+Obsolete Notes edits targeting a deleted identity are ignored. Serialized,
+generation-tracked workspace writes keep older saves from restoring deleted
+records.
+
+Existing projects without a workspace file receive a deterministic Cockpit tab
+with the original five instruments arranged in two/two/one-column rows.
+Startup does not write this default or rewrite existing records. Layout edits
+and explicit project save persist `db/pydeck26/workspace.json`. Unknown
+extension fields survive edits to established record fields.
+
+Tk uses a notebook and vertically scrollable canvas for each tab, rendering
+panel contents only for the active tab. Structural signatures trigger widget
+reconciliation only when tab/row/hosting structure changes. Text edits and save
+acknowledgements leave widgets and insertion positions intact. Geometry changes
+update row height and divider positions without rebuilding the panels. Width
+changes restore relative divider proportions; each tab retains its scroll
+position. Pending drafts are submitted before switching tabs or changing
+hosting. Pending Text modification events are also flushed before asynchronous
+projections can overwrite them.
 
 There are four permanent queues: three worker inboxes and Core-to-Tk commands.
 Tk sends plain semantic events. Core translates returned Mobile Stacks into
@@ -62,6 +122,8 @@ Unrecognized document and record fields survive ordinary subset edits.
 Compact dictionary, conversation, and Whiteboard edits wait for Ctrl+S or
 normal close. Structure edits, explicit idea saves, and valid additional JSON
 request immediate persistence. This preserves the existing save timing.
+Layout transitions also request persistence immediately. Independent Notes
+edits remain working until project save, a layout transition, or normal close.
 
 Core sends one revisioned commit at a time and coalesces further requests while
 that commit travels. Each proposal captures document generations and independent
@@ -85,6 +147,7 @@ Disk retains existing locations and formats:
 - `db/pydeck26/conversations.json`
 - `db/pydeck26/resources.json`
 - `db/ideas.json`
+- `db/pydeck26/workspace.json`
 - `docs/whiteboard/<local-timestamp>.txt`
 
 Mutable files use atomic temporary-file replacement. History files use exclusive
@@ -133,3 +196,19 @@ close before a pending debounce, persisted results, and injected Core/Mem/Disk
 failure with no surviving workers. A failed final Disk write produces status 1
 instead of a successful saved exit. It does not replace manual desktop checks
 of native dialogs, Explorer launches, or clipboard interoperability.
+
+`tests/test_workspace.py` checks panel identity, sharing across tabs, shrinking
+rows without deleting data, row order, and rejected illegal layouts.
+`tests/test_gui_workspace.py` runs a fresh-process real-Tk roundtrip using the
+actual notebook, slot dropdowns, x3 button, Notes controls, resize handles,
+dividers, and scroll commands. It switches tabs with pending text edits,
+closes with a newer Notes draft, restarts, and verifies restored text, selected
+tab, row sizes, divider ratios, and scroll position. Worker tests additionally
+verify canonical ownership and byte-for-byte preservation of existing project
+record files during layout changes.
+
+`gui_panel_delete.py` exercises real dropdown creation and Ctrl-modified button
+events, including suppression of ordinary unhosting, deletion from multiple
+tabs, persistence across restart, and explicit project-instrument recreation.
+Worker tests hold an earlier save during deletion and verify that its eventual
+return and an obsolete draft cannot resurrect the deleted panel.

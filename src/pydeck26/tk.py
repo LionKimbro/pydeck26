@@ -5,17 +5,18 @@ import os
 from pathlib import Path
 from queue import Empty
 import tkinter as tk
-from tkinter import filedialog, ttk
+from tkinter import filedialog, simpledialog, ttk
 import webbrowser
 
 import lionscliapp as app
 
-from . import description_editor, full_dictionary_editor, ideas, machine, resource_editor
+from . import description_editor, framing, full_dictionary_editor, ideas, machine, resource_editor
 
 g = {"project-root": None, "commands": None, "seq": 0, "view": None,
      "projecting": False, "closing": False, "conversation-id": None,
      "resource-index": None}
 widgets = {}  # Tk objects never leave the main thread.
+notes_editors = {}  # Panel identity -> active tab's independent Notes Text widget.
 
 
 def initialize_tk_state(project_root):
@@ -23,6 +24,7 @@ def initialize_tk_state(project_root):
               "view": None, "projecting": False, "closing": False,
               "conversation-id": None, "resource-index": None})
     widgets.clear()
+    notes_editors.clear()
 
 
 def send(event):
@@ -47,6 +49,7 @@ def handle_when_polling_core_commands():
                 root.destroy()
                 return
             if command["type"] == "STATE":
+                flush_pending_text_edits()
                 if command["seq"] >= g["seq"]:
                     project_core_state(command)
             elif command["type"] == "OPEN_PATH":
@@ -72,6 +75,7 @@ def project_core_state(view):
         if not view["ready"]:
             return
         documents = view["documents"]
+        framing.project_workspace(documents["workspace"])
         identity = documents["dictionary"]["identity"]
         title = identity.get("title") or identity.get("name") or g["project-root"].name
         widgets["title"].configure(text=f"PyDeck 26: {title}")
@@ -82,31 +86,41 @@ def project_core_state(view):
         marker = "[*] " if view["dirty"] else ""
         widgets["window"].title(f"{marker}PyDeck 26: {title}")
         for key in ("name", "title", "tags", "hook"):
+            if f"dictionary-{key}" not in widgets:
+                continue
             value = identity.get(key, "")
             if key == "tags":
                 value = " ".join(map(str, value)) if isinstance(value, list) else ""
             set_entry_text(widgets[f"dictionary-{key}"], value)
         if view["initialized"]:
-            widgets["initialization-panel"].grid_remove()
+            widgets["project-initialization"].pack_forget()
         else:
-            widgets["initialization-panel"].grid(row=3, column=0, sticky="ew", pady=(8, 0))
-        editor = widgets["whiteboard-editor"]
-        text = view["view-text"] if view["initialized"] else "Initialize PyDeck 26 to open this project's Whiteboard."
-        if editor.get("1.0", "end-1c") != text:
-            editor.configure(state="normal")
-            editor.delete("1.0", "end")
-            editor.insert("1.0", text)
-        editor.edit_modified(False)
-        editor.configure(state="normal" if view["initialized"] and not g["closing"] else "disabled")
-        widgets["snapshot-scale"].configure(to=view["history-count"], state="normal" if view["initialized"] else "disabled")
-        widgets["snapshot-scale"].set(view["view-index"])
+            widgets["project-initialization"].pack(fill="x", before=widgets["workspace-root"])
+        if "whiteboard-editor" in widgets:
+            editor = widgets["whiteboard-editor"]
+            text = view["view-text"] if view["initialized"] else "Initialize PyDeck 26 to open this project's Whiteboard."
+            if editor.get("1.0", "end-1c") != text:
+                editor.configure(state="normal")
+                editor.delete("1.0", "end")
+                editor.insert("1.0", text)
+            editor.edit_modified(False)
+            editor.configure(state="normal" if view["initialized"] and not g["closing"] else "disabled")
+            widgets["snapshot-scale"].configure(to=view["history-count"], state="normal" if view["initialized"] else "disabled")
+            widgets["snapshot-scale"].set(view["view-index"])
         project_resource_rows(documents["resources"])
         project_conversation_rows(documents["conversations"], view["selected-conversation-id"])
-        tree = widgets["ideas-tree"]
-        tree.delete(*tree.get_children())
-        for item in documents["ideas"]["items"]:
-            if item.get("pinned"):
-                tree.insert("", "end", iid=item["guid"], values=(item.get("status", ""), item.get("title", "")))
+        if "ideas-tree" in widgets:
+            tree = widgets["ideas-tree"]
+            tree.delete(*tree.get_children())
+            for item in documents["ideas"]["items"]:
+                if item.get("pinned"):
+                    tree.insert("", "end", iid=item["guid"], values=(item.get("status", ""), item.get("title", "")))
+        for panel_id, editor in notes_editors.items():
+            text = documents["workspace"]["panels"][panel_id]["text"]
+            if editor.get("1.0", "end-1c") != text:
+                editor.delete("1.0", "end")
+                editor.insert("1.0", text)
+            editor.edit_modified(False)
         ideas.set_context({"root": widgets["window"], "document": deepcopy(documents["ideas"]),
                            "save": save_idea_from_editor})
         ideas.refresh_directory()
@@ -124,6 +138,8 @@ def set_entry_text(entry, value):
 
 
 def project_resource_rows(document):
+    if "resources-tree" not in widgets:
+        return
     tree = widgets["resources-tree"]
     selected = tree.selection()
     tree.delete(*tree.get_children())
@@ -137,6 +153,9 @@ def project_resource_rows(document):
 
 
 def project_conversation_rows(document, selected_id):
+    if "conversation-tree" not in widgets:
+        g["conversation-id"] = None
+        return
     tree = widgets["conversation-tree"]
     tree.delete(*tree.get_children())
     for item in sorted(document["items"], key=lambda item: str(item.get("date") or ""), reverse=True):
@@ -153,7 +172,7 @@ def project_conversation_rows(document, selected_id):
 
 
 def handle_when_dictionary_editor_changes(event=None):
-    if not g["view"] or g["projecting"]:
+    if not g["view"] or g["projecting"] or "dictionary-name" not in widgets:
         return
     identity = {key: widgets[f"dictionary-{key}"].get() for key in ("name", "title", "hook")}
     identity["tags"] = widgets["dictionary-tags"].get().split()
@@ -257,6 +276,8 @@ def handle_when_user_adds_resource_folder():
 
 
 def get_selected_resource_index():
+    if "resources-tree" not in widgets:
+        return None
     selected = widgets["resources-tree"].selection()
     return int(selected[0]) if selected else None
 
@@ -312,6 +333,8 @@ def handle_when_user_moves_resource_down(event):
 
 
 def handle_when_whiteboard_text_changes(event=None):
+    if "whiteboard-editor" not in widgets:
+        return
     editor = widgets["whiteboard-editor"]
     if not editor.edit_modified():
         return
@@ -343,7 +366,73 @@ def flush_editor_drafts():
     handle_when_dictionary_editor_changes()
     handle_when_conversation_editor_changes()
     handle_when_whiteboard_text_changes()
+    for panel_id in list(notes_editors):
+        handle_when_notes_text_changes(panel_id)
     return full_dictionary_editor.flush_pending_edit()
+
+
+def flush_pending_text_edits():
+    """Publish queued Text modifications before an asynchronous projection can replace them."""
+    handle_when_whiteboard_text_changes()
+    for panel_id in list(notes_editors):
+        handle_when_notes_text_changes(panel_id)
+
+
+def clear_panel_widgets():
+    for key in list(widgets):
+        if key.startswith(("dictionary-", "conversation-", "resources-", "ideas-", "whiteboard-", "snapshot-")) or key in {"cockpit-surface", "initialization-panel"}:
+            del widgets[key]
+    notes_editors.clear()
+    g["conversation-id"] = None
+
+
+def build_hosted_panel(details):
+    panel = details["panel"]
+    widgets["cockpit-surface"] = details["parent"]
+    builders = {"STRUCTURE": build_structure_card, "DICTIONARY": build_dictionary_card,
+                "CONVERSATIONS": build_conversations_card, "IDEAS": build_ideas_card,
+                "WHITEBOARD": build_whiteboard_card}
+    if panel["type"] in builders:
+        return builders[panel["type"]]()
+    else:
+        parent = details["parent"]
+        header = ttk.Frame(parent)
+        header.grid(row=0, column=0, sticky="ew", padx=8, pady=4)
+        ttk.Label(header, text=panel["label"]).pack(side="left")
+        ttk.Button(header, text="Rename", command=lambda: handle_when_user_renames_notes_panel(panel["id"])).pack(side="right")
+        editor = tk.Text(parent, wrap="word", undo=True, font=("TkFixedFont", 11), padx=10, pady=10)
+        editor.grid(row=1, column=0, sticky="nsew", padx=8, pady=(0, 8))
+        parent.rowconfigure(0, weight=0)
+        parent.rowconfigure(1, weight=1)
+        notes_editors[panel["id"]] = editor
+        editor.insert("1.0", panel["text"])
+        editor.edit_modified(False)
+        editor.bind("<<Modified>>", lambda event: handle_when_notes_text_changes(panel["id"]))
+        return header
+
+
+def build_panel_title_row(parent, title):
+    """One title row shared by panel-specific actions and the hosting close control."""
+    header = tk.Frame(parent, background="#ffffff")
+    header.grid(row=0, column=0, sticky="ew")
+    tk.Label(header, text=title, background="#ffffff", foreground="#173b62",
+             font=("TkDefaultFont", 12, "bold")).pack(side="left")
+    return header
+
+
+def handle_when_notes_text_changes(panel_id):
+    editor = notes_editors.get(panel_id)
+    if editor is not None and editor.edit_modified():
+        editor.edit_modified(False)
+        if not g["projecting"]:
+            send({"type": "NOTES_EDIT", "panel-id": panel_id, "text": editor.get("1.0", "end-1c")})
+
+
+def handle_when_user_renames_notes_panel(panel_id):
+    panel = g["view"]["documents"]["workspace"]["panels"][panel_id]
+    label = simpledialog.askstring("Rename Notes", "Panel name:", initialvalue=panel["label"], parent=widgets["window"])
+    if label:
+        framing.request({"type": "RENAME_PANEL", "panel-id": panel_id, "label": label})
 
 
 def handle_when_user_uses_project_save_shortcut(event):
@@ -425,41 +514,31 @@ def build_masthead(window: tk.Toplevel) -> None:
 
 
 def build_cockpit_surface(window: tk.Toplevel) -> None:
-    """Lay out the cockpit framing rooms with the Whiteboard as the live center."""
-    surface = tk.Frame(window, background="#e8edf3", padx=16, pady=10)
+    surface = ttk.Frame(window)
     surface.grid(row=1, column=0, sticky="nsew")
-    surface.columnconfigure(0, weight=1, uniform="cockpit-columns")
-    surface.columnconfigure(1, weight=1, uniform="cockpit-columns")
-    surface.rowconfigure(0, weight=1)
-    surface.rowconfigure(1, weight=2)
-    surface.rowconfigure(2, weight=0)
-    widgets["cockpit-surface"] = surface
-    build_structure_card()
-    build_dictionary_card()
-    build_conversations_card()
-    build_ideas_card()
-    build_whiteboard_card()
+    banner = ttk.Frame(surface, padding=8)
+    ttk.Label(banner, text="PyDeck 26 has not been initialized for this project.").pack(side="left")
+    ttk.Button(banner, text="Initialize PyDeck 26", command=handle_when_user_initializes_project).pack(side="left", padx=12)
+    body = ttk.Frame(surface)
+    body.pack(fill="both", expand=True)
+    widgets["project-initialization"] = banner
+    widgets["workspace-root"] = body
+    framing.initialize_framing({"parent": body, "window": window, "send": send,
+        "flush": flush_editor_drafts, "build-panel": build_hosted_panel, "clear-panels": clear_panel_widgets})
 
 
-def build_inactive_card(card_spec: dict) -> None:
-    """Keep a visible, intentionally inactive place for a later cockpit feature."""
-    surface = widgets["cockpit-surface"]
-    card = tk.Frame(surface, background="#ffffff", highlightbackground="#c7d2df", highlightthickness=1, padx=14, pady=12)
-    card.grid(row=card_spec["row"], column=card_spec["column"], sticky="nsew", padx=5, pady=5)
-    tk.Label(card, text=card_spec["title"], background="#ffffff", foreground="#173b62", font=("TkDefaultFont", 12, "bold")).pack(anchor="w")
-    tk.Label(card, text=card_spec["hint"], background="#ffffff", foreground="#667789", font=("TkDefaultFont", 9)).pack(anchor="w", pady=(1, 10))
-    tk.Label(card, text="This room is being held open for the project.", background="#ffffff", foreground="#263746", anchor="nw", justify="left").pack(anchor="w", fill="both", expand=True)
 
 
-def build_structure_card() -> None:
+
+def build_structure_card() -> tk.Frame:
     """Build the curated, explicitly ordered project-resource instrument."""
     surface = widgets["cockpit-surface"]
     card = tk.Frame(surface, background="#ffffff", highlightbackground="#c7d2df", highlightthickness=1, padx=10, pady=10)
     card.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
     card.columnconfigure(0, weight=1)
     card.rowconfigure(2, weight=1)
-    tk.Label(card, text="STRUCTURE", background="#ffffff", foreground="#173b62", font=("TkDefaultFont", 12, "bold")).grid(row=0, column=0, sticky="w")
-    ttk.Button(card, text="Copy", command=handle_when_user_copies_structure_json).grid(row=0, column=0, sticky="e")
+    header = build_panel_title_row(card, "STRUCTURE")
+    ttk.Button(header, text="Copy", command=handle_when_user_copies_structure_json).pack(side="right")
     tk.Label(card, text="curated project resources — path copies, filename opens, hook explains", background="#ffffff", foreground="#667789", font=("TkDefaultFont", 9)).grid(row=1, column=0, sticky="w")
     tree = ttk.Treeview(card, columns=("path", "filename", "hook"), show="headings", height=5)
     for key, label, width in [("path", "Path", 120), ("filename", "Filename", 145), ("hook", "Hook", 220)]:
@@ -477,15 +556,17 @@ def build_structure_card() -> None:
     ttk.Button(controls, text="↑", width=3, command=move_selected_resource_up).pack(side="right")
     ttk.Button(controls, text="↓", width=3, command=move_selected_resource_down).pack(side="right", padx=(0, 5))
     widgets["resources-tree"] = tree
+    return header
 
 
-def build_dictionary_card() -> None:
+def build_dictionary_card() -> tk.Frame:
     """Build the compact editable identity surface for the current project dictionary."""
     surface = widgets["cockpit-surface"]
     card = tk.Frame(surface, background="#ffffff", highlightbackground="#c7d2df", highlightthickness=1, padx=10, pady=10)
-    card.grid(row=0, column=1, sticky="nsew", padx=5, pady=5)
+    card.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
     card.columnconfigure(1, weight=1)
-    tk.Label(card, text="DICTIONARY", background="#ffffff", foreground="#173b62", font=("TkDefaultFont", 12, "bold")).grid(row=0, column=0, columnspan=2, sticky="w")
+    header = build_panel_title_row(card, "DICTIONARY")
+    header.grid_configure(columnspan=2)
     name = build_dictionary_entry(card, "Name", 1)
     title = build_dictionary_entry(card, "Title", 2)
     tags = build_dictionary_entry(card, "Tags", 3)
@@ -497,6 +578,7 @@ def build_dictionary_card() -> None:
     widgets["dictionary-title"] = title
     widgets["dictionary-tags"] = tags
     widgets["dictionary-hook"] = hook
+    return header
 
 
 def build_dictionary_entry(parent: tk.Frame, label: str, row: int) -> ttk.Entry:
@@ -507,26 +589,28 @@ def build_dictionary_entry(parent: tk.Frame, label: str, row: int) -> ttk.Entry:
     return entry
 
 
-def build_ideas_card() -> None:
+def build_ideas_card() -> tk.Frame:
     """Build the compact pinned-ideas view and its directory jump."""
     surface=widgets["cockpit-surface"]; card=tk.Frame(surface,background="#ffffff",highlightbackground="#c7d2df",highlightthickness=1,padx=10,pady=10)
-    card.grid(row=1,column=1,sticky="nsew",padx=5,pady=5); card.columnconfigure(0,weight=1); card.rowconfigure(2,weight=1)
-    tk.Label(card,text="IDEAS",background="#ffffff",foreground="#173b62",font=("TkDefaultFont",12,"bold")).grid(row=0,column=0,sticky="w")
+    card.grid(row=0,column=0,sticky="nsew",padx=5,pady=5); card.columnconfigure(0,weight=1); card.rowconfigure(2,weight=1)
+    header = build_panel_title_row(card, "IDEAS")
     tk.Label(card,text="pinned possible work",background="#ffffff",foreground="#667789",font=("TkDefaultFont",9)).grid(row=1,column=0,sticky="w")
     tree=ttk.Treeview(card,columns=("status","title"),show="headings",height=5); tree.heading("status",text="Status"); tree.heading("title",text="Title"); tree.column("status",width=95,stretch=False); tree.column("title",width=250,stretch=True)
     tree.grid(row=2,column=0,sticky="nsew",pady=(5,0)); tree.bind("<Double-Button-1>",lambda e: ideas.open_editor(tree.selection()[0] if tree.selection() else None))
     ttk.Button(card,text="Directory",command=ideas.open_directory).grid(row=3,column=0,sticky="w",pady=(6,0)); widgets["ideas-tree"]=tree
+    return header
 
 
-def build_conversations_card() -> None:
+def build_conversations_card() -> tk.Frame:
     """Build a compact master-detail project conversation register."""
     surface = widgets["cockpit-surface"]
     card = tk.Frame(surface, background="#ffffff", highlightbackground="#c7d2df", highlightthickness=1, padx=10, pady=10)
-    card.grid(row=1, column=0, sticky="nsew", padx=5, pady=5)
+    card.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
     card.columnconfigure(0, weight=2)
     card.columnconfigure(1, weight=3)
     card.rowconfigure(2, weight=1)
-    tk.Label(card, text="CONVERSATIONS", background="#ffffff", foreground="#173b62", font=("TkDefaultFont", 12, "bold")).grid(row=0, column=0, sticky="w")
+    header = build_panel_title_row(card, "CONVERSATIONS")
+    header.grid_configure(columnspan=2)
     tk.Label(card, text="conversations with LLMs", background="#ffffff", foreground="#667789", font=("TkDefaultFont", 9)).grid(row=1, column=0, sticky="w", pady=(1, 6))
 
     list_panel = tk.Frame(card, background="#ffffff")
@@ -549,7 +633,7 @@ def build_conversations_card() -> None:
     ttk.Button(list_panel, text="New Conversation", command=handle_when_user_creates_conversation).grid(row=1, column=0, sticky="w", pady=(6, 0))
 
     editor = tk.Frame(card, background="#ffffff")
-    editor.grid(row=0, column=1, rowspan=3, sticky="nsew")
+    editor.grid(row=1, column=1, rowspan=2, sticky="nsew")
     editor.columnconfigure(1, weight=1)
     editor.columnconfigure(2, weight=0)
     date_entry = build_conversation_entry(editor, "Date", 0)
@@ -571,6 +655,7 @@ def build_conversations_card() -> None:
     widgets["conversation-url"] = url_entry
     widgets["conversation-hook"] = hook_entry
     widgets["conversation-description"] = description
+    return header
 
 
 def build_conversation_entry(parent: tk.Frame, label: str, row: int) -> ttk.Entry:
@@ -581,19 +666,18 @@ def build_conversation_entry(parent: tk.Frame, label: str, row: int) -> ttk.Entr
     return entry
 
 
-def build_whiteboard_card() -> None:
+def build_whiteboard_card() -> tk.Frame:
     """Build the directly editable present and its right-hand historical control."""
     surface = widgets["cockpit-surface"]
     card = tk.Frame(surface, background="#ffffff", highlightbackground="#c7d2df", highlightthickness=1, padx=14, pady=12)
-    card.grid(row=2, column=0, columnspan=2, sticky="nsew", padx=5, pady=5)
+    card.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
     card.columnconfigure(0, weight=1)
     card.rowconfigure(2, weight=1)
-    tk.Label(card, text="WHITEBOARD", background="#ffffff", foreground="#173b62", font=("TkDefaultFont", 12, "bold")).grid(row=0, column=0, sticky="w")
+    header = build_panel_title_row(card, "WHITEBOARD")
+    header.grid_configure(columnspan=2)
     tk.Label(card, text="loose intentional notes, current thinking, and recoverable earlier states", background="#ffffff", foreground="#667789", font=("TkDefaultFont", 9)).grid(row=1, column=0, sticky="w", pady=(1, 8))
 
-    controls = ttk.Frame(card)
-    controls.grid(row=0, column=1, rowspan=2, sticky="e")
-    ttk.Button(controls, text="Snapshot", command=handle_when_user_saves_snapshot).grid(row=0, column=0)
+    ttk.Button(header, text="Snapshot", command=handle_when_user_saves_snapshot).pack(side="right")
 
     editor = tk.Text(card, wrap="word", undo=True, height=7, font=("TkFixedFont", 11), padx=10, pady=10, relief="solid", borderwidth=1)
     editor.grid(row=2, column=0, sticky="nsew", padx=(0, 10))
@@ -606,11 +690,7 @@ def build_whiteboard_card() -> None:
     scale = tk.Scale(history, from_=0, to=0, orient="vertical", resolution=1, showvalue=False, length=145, command=handle_when_snapshot_scale_changes, background="#f2f5f8", highlightthickness=0)
     scale.pack(anchor="center", fill="y", expand=True)
     widgets["snapshot-scale"] = scale
-
-    initialization = tk.Frame(card, background="#fff6d8", padx=10, pady=8)
-    tk.Label(initialization, text="PyDeck 26 has not been initialized for this project.", background="#fff6d8", foreground="#654f00").pack(side="left")
-    ttk.Button(initialization, text="Initialize PyDeck 26", command=handle_when_user_initializes_project).pack(side="left", padx=(12, 0))
-    widgets["initialization-panel"] = initialization
+    return header
 
 
 def build_status_bar(window: tk.Toplevel) -> None:

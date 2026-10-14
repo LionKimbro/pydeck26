@@ -43,7 +43,7 @@
       "guid": "347406cf-930f-47a1-9030-e11c7160e63e",
       "title": "Functional Resources / Jumpers pane",
       "description": "List useful folders and files, display their paths, and open them in Explorer—including a separate jumper for every package found beneath src/.",
-      "status": "conceived",
+      "status": "implemented",
       "date-conceived": "before 2026-08-02",
       "date-entered": "2026-08-02",
       "notes": "",

@@ -7,7 +7,7 @@ from pathlib import Path
 import re
 from uuid import uuid4
 
-from . import machine, mobile_stacks as ms
+from . import machine, mobile_stacks as ms, workspace
 
 g = {
     "revision": 0, "ready": False, "initialized": False, "seq": 0,
@@ -120,7 +120,7 @@ def reduce_event(event):
         bundle = event["bundle"]
         retained = deepcopy({key: documents[key] for key in dirty})
         documents.update({key: bundle[key] for key in (
-            "whiteboard", "dictionary", "conversations", "ideas", "resources",
+            "whiteboard", "dictionary", "conversations", "ideas", "resources", "workspace",
         )})
         documents.update(retained)
         g["snapshot"] = bundle["snapshot"]
@@ -166,7 +166,24 @@ def reduce_event(event):
         finish_close_when_saved()
         return
     elif kind == "SAVE":
-        request_commit(dirty | {"whiteboard"})
+        request_commit(dirty | {"whiteboard", "workspace"})
+    elif kind in workspace.LAYOUT_EVENTS:
+        proposal = deepcopy(documents["workspace"])
+        try:
+            workspace.apply_layout_event(proposal, event)
+            workspace.validate_workspace(proposal)
+        except ValueError as error:
+            g["status"] = str(error)
+        else:
+            if proposal != documents["workspace"]:
+                documents["workspace"] = proposal
+                touch_document("workspace")
+                request_commit({"workspace"})
+    elif kind == "NOTES_EDIT":
+        panel = documents["workspace"]["panels"].get(event["panel-id"])
+        if panel is not None and panel["type"] == "NOTES" and panel["text"] != event["text"]:
+            panel["text"] = event["text"]
+            touch_document("workspace")
     elif kind == "DICTIONARY_EDIT":
         documents["dictionary"]["identity"].update(event["identity"])
         touch_document("dictionary")

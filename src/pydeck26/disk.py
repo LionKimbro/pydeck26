@@ -17,6 +17,7 @@ def read_project_bundle():
         "conversations": storage.load_conversations(root),
         "ideas": storage.load_ideas(root),
         "resources": storage.load_resources(root),
+        "workspace": storage.load_workspace(root),
         "history": storage.list_snapshots(root),
     }
 
@@ -34,6 +35,7 @@ def handle_when_disk_writes_project_documents():
         "conversations": storage.save_conversations,
         "ideas": storage.save_ideas,
         "resources": storage.save_resources,
+        "workspace": storage.save_workspace,
     }
     for key, value in ms.get_register("documents").items():
         writers[key](g["project-root"], value)
