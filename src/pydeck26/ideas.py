@@ -1,11 +1,12 @@
 """Idea editor and directory windows sharing PyDeck's ideas document."""
 from __future__ import annotations
+from copy import deepcopy
 from datetime import date
 import re, tkinter as tk
 from tkinter import ttk
 import uuid
 
-g={"save":None,"refresh":None,"root":None,"document":None,"editing":None,"new":False}
+g={"save":None,"root":None,"document":{"items":[]}}
 widgets={}
 
 def set_context(ctx: dict) -> None:
@@ -25,7 +26,9 @@ def refresh_directory() -> None:
     for item in g["document"]["items"]: tree.insert("","end",iid=item["guid"],values=("★" if item.get("pinned") else "",item.get("status",""),item.get("date-conceived",""),item.get("title", "")))
 
 def open_editor(guid: str | None) -> None:
-    item=find_item(guid) if guid else make_new_item(); g["editing"]=item; g["new"]=guid is None
+    source=find_item(guid) if guid else make_new_item()
+    if source is None: return
+    item=deepcopy(source)
     w=tk.Toplevel(g["root"]); w.title("PyDeck 26 — Idea Editor"); w.columnconfigure(1,weight=1)
     fields={};
     for row,key,label in [(0,"guid","GUID"),(1,"title","Title"),(2,"status","Status"),(3,"date-conceived","Date conceived"),(4,"date-entered","Date entered"),(5,"tags","Tags")]:
@@ -37,7 +40,7 @@ def open_editor(guid: str | None) -> None:
     for row,key,height in [(6,"description",5),(7,"notes",10)]:
         ttk.Label(w,text=key.title()).grid(row=row,column=0,sticky="nw",padx=8,pady=3); t=tk.Text(w,height=height,wrap="word"); t.grid(row=row,column=1,sticky="ew",padx=8,pady=3); t.insert("1.0",item[key]); fields[key]=t
     pinned=tk.BooleanVar(value=item["pinned"]); ttk.Checkbutton(w,text="Pinned",variable=pinned).grid(row=8,column=1,sticky="w",padx=8)
-    ttk.Button(w,text="Save",command=lambda:save_editor(fields,pinned,w)).grid(row=9,column=1,sticky="e",padx=8,pady=8)
+    ttk.Button(w,text="Save",command=lambda:save_editor({"fields":fields,"pinned":pinned,"window":w,"item":item})).grid(row=9,column=1,sticky="e",padx=8,pady=8)
     fields["title"].focus_set(); widgets["idea-editor"]=w
 
 def make_new_item() -> dict:
@@ -48,9 +51,9 @@ def find_item(guid: str | None) -> dict | None:
         if item.get("guid")==guid:return item
     return None
 
-def save_editor(fields: dict, pinned: tk.BooleanVar, window: tk.Toplevel) -> None:
+def save_editor(draft: dict) -> None:
+    fields=draft["fields"]; pinned=draft["pinned"]; window=draft["window"]
     tags=fields["tags"].get().split()
     if any(not re.fullmatch(r"[a-z0-9_]+",tag) for tag in tags): return
-    item=g["editing"]; item.update({"title":fields["title"].get(),"status":fields["status"].get(),"date-conceived":fields["date-conceived"].get(),"date-entered":fields["date-entered"].get(),"tags":tags,"pinned":pinned.get(),"description":fields["description"].get("1.0","end-1c"),"notes":fields["notes"].get("1.0","end-1c")})
-    if g["new"]: g["document"]["items"].append(item)
-    g["save"](); g["refresh"](); window.destroy()
+    item=draft["item"]; item.update({"title":fields["title"].get(),"status":fields["status"].get(),"date-conceived":fields["date-conceived"].get(),"date-entered":fields["date-entered"].get(),"tags":tags,"pinned":pinned.get(),"description":fields["description"].get("1.0","end-1c"),"notes":fields["notes"].get("1.0","end-1c")})
+    g["save"](item); window.destroy()

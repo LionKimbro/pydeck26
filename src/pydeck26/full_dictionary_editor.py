@@ -26,10 +26,16 @@ def set_full_dictionary_callbacks(callbacks: dict) -> None:
 
 def open_full_dictionary_editor(details: dict) -> None:
     """Open the resizable additional-fields editor for one canonical entry."""
+    existing = widgets.get("window")
+    if existing is not None and existing.winfo_exists():
+        existing.lift()
+        return
+    g["after-id"] = None
     window = tk.Toplevel(details["parent"])
     window.title(f"Full Dictionary Entry — {details['name']}")
     window.geometry("920x610")
     window.minsize(650, 420)
+    window.protocol("WM_DELETE_WINDOW", handle_when_user_closes_full_editor)
     window.columnconfigure(0, weight=1); window.rowconfigure(0, weight=1)
     pane = ttk.Panedwindow(window, orient="horizontal")
     pane.grid(row=0, column=0, sticky="nsew", padx=8, pady=8)
@@ -55,7 +61,33 @@ def open_full_dictionary_editor(details: dict) -> None:
     ttk.Button(buttons,text="Copy JSON",command=handle_when_user_copies_json).pack(side="left",padx=3)
     ttk.Button(buttons,text="Copy Complete Entry",command=handle_when_user_copies_complete_entry).pack(side="left",padx=3)
     widgets.update({"window":window,"editor":editor,"tree":tree,"detail":detail,"status":status,"document":details["document"]})
-    editor.edit_modified(False); set_status("JSON valid. Autosaved.")
+    editor.edit_modified(False); set_status("JSON valid.")
+
+
+def update_source_document(document: dict) -> None:
+    """Keep the Tk copy used by Copy Complete Entry current."""
+    if "document" in widgets:
+        widgets["document"] = document
+
+
+def flush_pending_edit() -> bool:
+    """Flush debounced drafts before project save/close, keeping invalid drafts visible."""
+    window = widgets.get("window")
+    if window is None or not window.winfo_exists():
+        return True
+    if g["after-id"] or widgets["editor"].edit_modified():
+        if g["after-id"]:
+            window.after_cancel(g["after-id"])
+            g["after-id"] = None
+        return validate_and_autosave() is not None
+    # Invalid drafts remain invalid after their debounce has already run.
+    return parse_additional_json() is not None
+
+
+def handle_when_user_closes_full_editor() -> None:
+    """Submit a valid pending edit; discard invalid drafts on editor close."""
+    flush_pending_edit()
+    widgets["window"].destroy()
 
 def get_additional_fields(document: dict) -> dict:
     """Extract only editable non-basic top-level fields."""
@@ -70,9 +102,13 @@ def handle_when_json_changes(event: tk.Event) -> None:
 
 def validate_and_autosave() -> dict | None:
     """Validate JSON, visually locate failures, and save only a valid additional object."""
+    if g["after-id"]:
+        widgets["window"].after_cancel(g["after-id"])
+    g["after-id"] = None
     result = parse_additional_json()
     if result is None: return None
-    clear_error_tags(); g["save-fn"](result); set_status("JSON valid. Autosaved."); return result
+    widgets["editor"].edit_modified(False)
+    clear_error_tags(); g["save-fn"](result); set_status("JSON valid. Save requested."); return result
 
 def parse_additional_json() -> dict | None:
     """Parse the editor's additional object with precise reserved-key feedback."""
