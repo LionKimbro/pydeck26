@@ -7,6 +7,27 @@ import pytest
 from pydeck26 import workspace
 
 
+@pytest.mark.parametrize("value", [0, 1, -0.2, float("nan"), float("inf"), True, None, "wide"])
+def test_invalid_internal_panel_splits_are_rejected_without_mutation(value):
+    document = workspace.make_default_workspace()
+    original = deepcopy(document)
+    with pytest.raises(ValueError, match="divider"):
+        workspace.apply_layout_event(document, {"type": "SET_PANEL_SPLIT", "panel-id": "project-conversations", "proportion": value})
+    assert document == original
+
+
+def test_internal_split_belongs_to_panel_across_tabs():
+    document = workspace.make_default_workspace()
+    workspace.apply_layout_event(document, {"type": "SET_PANEL_SPLIT", "panel-id": "project-conversations", "proportion": 0.63})
+    workspace.apply_layout_event(document, {"type": "CREATE_TAB", "label": "Conversations too"})
+    tab = workspace.get_tab(document, document["selected-tab-id"])
+    workspace.apply_layout_event(document, {"type": "HOST_PANEL", "position-id": workspace.position_id(tab["row-ids"][0], 1), "panel-id": "project-conversations"})
+    workspace.validate_workspace(document)
+    assert document["panels"]["project-conversations"]["split-proportion"] == 0.63
+    with pytest.raises(ValueError, match="divider"):
+        workspace.apply_layout_event(document, {"type": "SET_PANEL_SPLIT", "panel-id": "project-whiteboard", "proportion": 0.4})
+
+
 def test_shrinking_rows_unhosts_panels_without_deleting_their_records():
     document = workspace.make_default_workspace()
     original_panels = deepcopy(document["panels"])

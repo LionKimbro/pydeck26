@@ -6,7 +6,7 @@ import tkinter as tk
 from tkinter import font, ttk
 from uuid import uuid4
 
-from . import captains_log
+from . import captains_log, panel_geometry
 from .theme import COLORS
 
 g = {"send": None, "window": None, "is-closing": None, "selected": "new",
@@ -141,6 +141,7 @@ def build_panel(details):
     body.bind("<<Modified>>", handle_when_fields_change)
     refresh_rows()
     show_selected_entry()
+    panel_geometry.register_split({"panel": details["panel"], "pane": pane})
     return header
 
 

@@ -10,7 +10,7 @@
         "working",
         "whiteboard"
       ],
-      "scroll-position": 0.07804878048780488
+      "scroll-position": 0.0
     },
     {
       "id": "31af4ffe5413489d9abe13569e0b73ab",
@@ -39,20 +39,22 @@
     },
     "whiteboard": {
       "column-count": 1,
-      "height": 489,
+      "height": 410,
       "sash-proportions": []
     },
     "cf127eeb02a143a4aa7ce2142451773a": {
       "column-count": 2,
       "height": 538,
       "sash-proportions": [
-        0.3466023321270607
+        0.33293124246079614
       ]
     },
     "79d0a7df5314479684139e6a5d439deb": {
-      "column-count": 1,
+      "column-count": 2,
       "height": 260,
-      "sash-proportions": []
+      "sash-proportions": [
+        0.6332931242460796
+      ]
     }
   },
   "positions": {
@@ -79,6 +81,9 @@
     },
     "79d0a7df5314479684139e6a5d439deb/column-1": {
       "panel-id": "project-conversations"
+    },
+    "79d0a7df5314479684139e6a5d439deb/column-2": {
+      "panel-id": null
     }
   },
   "panels": {
@@ -98,7 +103,8 @@
       "id": "project-conversations",
       "type": "CONVERSATIONS",
       "label": "Conversations",
-      "source": "project"
+      "source": "project",
+      "split-proportion": 0.36357744653272844
     },
     "project-ideas": {
       "id": "project-ideas",
@@ -130,7 +136,8 @@
       "id": "project-captains-log",
       "type": "CAPTAINS_LOG",
       "label": "Captain's Log",
-      "source": "project"
+      "source": "project",
+      "split-proportion": 0.2681734880879658
     }
   }
 }

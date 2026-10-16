@@ -30,6 +30,8 @@ Drafts stay in Tk when switching entries or tabs; red list rows identify unsaved
 
 Use **+ Tab**, **Rename tab**, and **Remove tab** in the toolbar, and **+ Add row** at the bottom of the tab. A row's rail offers **x1/x2/x3**, **↑/↓** to reorder it, and **×** to remove it. Drag column dividers to change widths and the shaded edge beneath a row to change its height. Tabs scroll vertically and remember their position. Removing tabs or rows preserves their panels so they can be hosted again.
 
+Captain's Log and Conversations also have a draggable divider between their entry list and editor. Each panel remembers its internal split in `workspace.json`, restoring the same proportions across tabs, window resizing, and restart. Moving these dividers saves layout only; it does not post unsaved Captain's Log notes.
+
 ## Run
 
 Initialize PyDeck's project-local Whiteboard storage once:

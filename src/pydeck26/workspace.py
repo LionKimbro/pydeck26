@@ -1,6 +1,7 @@
 """Project workspace records: panel identity is independent of tab/row hosting."""
 
 from uuid import uuid4
+import math
 import re
 
 PROJECT_PANELS = {
@@ -13,8 +14,9 @@ LAYOUT_EVENTS = {
     "CREATE_TAB", "SELECT_TAB", "RENAME_TAB", "DELETE_TAB", "ADD_ROW", "DELETE_ROW",
     "MOVE_ROW", "SET_ROW_COLUMNS", "SET_ROW_HEIGHT", "SET_SASH_PROPORTIONS",
     "SET_TAB_SCROLL", "HOST_PANEL", "UNHOST_PANEL", "CREATE_NOTES", "RENAME_PANEL",
-    "DELETE_PANEL", "CREATE_PROJECT_PANEL", "CREATE_IMAGE",
+    "DELETE_PANEL", "CREATE_PROJECT_PANEL", "CREATE_IMAGE", "SET_PANEL_SPLIT",
 }
+SPLIT_PANEL_TYPES = {"CAPTAINS_LOG", "CONVERSATIONS"}
 
 
 def position_id(row_id, column):
@@ -185,6 +187,12 @@ def apply_layout_event(document, event):
             if panel_id != current and panel_id in get_hosted_panel_ids(document, owner["id"]):
                 raise ValueError("A panel can appear only once in each tab. Unhost it from its current slot first.")
             document["positions"][target]["panel-id"] = panel_id
+    elif kind == "SET_PANEL_SPLIT":
+        panel = document["panels"].get(event["panel-id"])
+        proportion = event["proportion"]
+        if panel is None or panel["type"] not in SPLIT_PANEL_TYPES or not is_split_proportion(proportion):
+            raise ValueError("Invalid panel divider proportion.")
+        panel["split-proportion"] = proportion
     elif kind == "DELETE_PANEL":
         panel_id = event["panel-id"]
         if panel_id not in document["panels"]:
@@ -220,6 +228,8 @@ def validate_workspace(document):
     for panel_id, panel in panels.items():
         if panel.get("id") != panel_id or not isinstance(panel.get("label"), str):
             raise ValueError("Invalid panel identity.")
+        if "split-proportion" in panel and (panel.get("type") not in SPLIT_PANEL_TYPES or not is_split_proportion(panel["split-proportion"])):
+            raise ValueError("Invalid panel divider proportion.")
         if panel_id not in PROJECT_PANELS:
             if panel.get("type") == "NOTES" and isinstance(panel.get("text"), str):
                 pass
@@ -257,6 +267,10 @@ def validate_workspace(document):
                     hosted.add(panel_id)
     if set(rows) != row_ids or set(positions) != expected_positions or document["selected-tab-id"] not in tab_ids:
         raise ValueError("Workspace contains orphaned rows/slots or an invalid selection.")
+
+
+def is_split_proportion(value):
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value) and 0 < value < 1
 
 
 def is_image_asset_reference(asset):

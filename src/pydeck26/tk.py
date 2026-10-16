@@ -12,7 +12,7 @@ import webbrowser
 
 import lionscliapp as app
 
-from . import captains_log_ui, description_editor, framing, full_dictionary_editor, git_ui, ideas, image_ui, machine, resource_editor
+from . import captains_log_ui, description_editor, framing, full_dictionary_editor, git_ui, ideas, image_ui, machine, panel_geometry, resource_editor
 
 g = {"project-root": None, "commands": None, "seq": 0, "view": None,
      "projecting": False, "closing": False, "conversation-id": None,
@@ -87,6 +87,7 @@ def project_core_state(view):
             return
         documents = view["documents"]
         framing.project_workspace(documents["workspace"])
+        panel_geometry.project_geometry(documents["workspace"])
         image_ui.project_panels(documents["workspace"], view.get("image-states", {}))
         captains_log_ui.project_entries(view.get("captains-log-entries", []), view["initialized"])
         identity = documents["dictionary"]["identity"]
@@ -410,6 +411,7 @@ def flush_pending_text_edits():
 
 
 def clear_panel_widgets():
+    panel_geometry.clear_panels()
     captains_log_ui.clear_panels()
     git_ui.clear_panels()
     image_ui.clear_panels()
@@ -434,7 +436,10 @@ def build_hosted_panel(details):
                 "CONVERSATIONS": build_conversations_card, "IDEAS": build_ideas_card,
                 "WHITEBOARD": build_whiteboard_card}
     if panel["type"] in builders:
-        return builders[panel["type"]]()
+        header = builders[panel["type"]]()
+        if panel["type"] == "CONVERSATIONS":
+            panel_geometry.register_split({"panel": panel, "pane": widgets["conversation-pane"]})
+        return header
     else:
         parent = details["parent"]
         header = ttk.Frame(parent)
@@ -524,6 +529,7 @@ def realize_main_cockpit_window(root: tk.Tk) -> None:
     window.columnconfigure(0, weight=1)
     window.rowconfigure(1, weight=1)
     widgets["window"] = window
+    panel_geometry.initialize_context({"window": window, "send": send})
     image_ui.initialize_context({"send": send, "window": window, "is-closing": lambda: g["closing"]})
     git_ui.initialize_context({"send": send, "window": window, "is-closing": lambda: g["closing"]})
     captains_log_ui.initialize_context({"send": send, "window": window, "is-closing": lambda: g["closing"]})
@@ -651,15 +657,15 @@ def build_conversations_card() -> tk.Frame:
     surface = widgets["cockpit-surface"]
     card = tk.Frame(surface, background=COLORS["panel"], highlightbackground=COLORS["border"], highlightthickness=1, padx=10, pady=10)
     card.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
-    card.columnconfigure(0, weight=2)
-    card.columnconfigure(1, weight=3)
+    card.columnconfigure(0, weight=1)
     card.rowconfigure(2, weight=1)
     header = build_panel_title_row(card, "CONVERSATIONS")
-    header.grid_configure(columnspan=2)
     tk.Label(card, text="conversations with LLMs", background=COLORS["panel"], foreground=COLORS["secondary"], font=("TkDefaultFont", 9)).grid(row=1, column=0, sticky="w", pady=(1, 6))
 
-    list_panel = tk.Frame(card, background=COLORS["panel"])
-    list_panel.grid(row=2, column=0, sticky="nsew", padx=(0, 8))
+    pane = ttk.Panedwindow(card, orient="horizontal")
+    pane.grid(row=2, column=0, sticky="nsew")
+    list_panel = tk.Frame(pane, background=COLORS["panel"], padx=4)
+    pane.add(list_panel, weight=2)
     list_panel.columnconfigure(0, weight=1)
     list_panel.rowconfigure(0, weight=1)
     tree = ttk.Treeview(list_panel, columns=("date", "title", "hook"), show="headings", selectmode="browse", height=5)
@@ -677,8 +683,8 @@ def build_conversations_card() -> tk.Frame:
     tree.bind("<<TreeviewSelect>>", handle_when_user_selects_conversation)
     ttk.Button(list_panel, text="New Conversation", command=handle_when_user_creates_conversation).grid(row=1, column=0, sticky="w", pady=(6, 0))
 
-    editor = tk.Frame(card, background=COLORS["panel"])
-    editor.grid(row=1, column=1, rowspan=2, sticky="nsew")
+    editor = tk.Frame(pane, background=COLORS["panel"], padx=6)
+    pane.add(editor, weight=3)
     editor.columnconfigure(1, weight=1)
     editor.columnconfigure(2, weight=0)
     date_entry = build_conversation_entry(editor, "Date", 0)
@@ -698,6 +704,7 @@ def build_conversations_card() -> tk.Frame:
     widgets["conversation-url"] = url_entry
     widgets["conversation-hook"] = hook_entry
     widgets["conversation-description"] = description
+    widgets["conversation-pane"] = pane
     return header
 
 

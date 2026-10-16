@@ -9,6 +9,7 @@ Today's `docs/architecture-review.md` and current `src/today` implementation.
 | --- | --- | --- |
 | `tk.py`, `framing.py`, and editor modules | Widgets, bindings, tab/row/slot framing, native dialogs, editor drafts, independent presentation records | Main thread |
 | `theme.py` | Shared phosphor-green palette and Tk/ttk appearance defaults, installed before window construction | Main thread |
+| `panel_geometry.py` | Live internal panel splits, drag tracking, and deferred proportion restoration | Main thread |
 | `core.py` | Working project documents, dirty generations, selected conversation, Whiteboard history cursor, semantic reducer events and effects | Core worker |
 | `mem.py` | Canonical project documents and revision; acceptance and persistence scheduling | Mem worker |
 | `disk.py` | Project loading, document writes, historical snapshot reads/creation, filesystem path validation | Disk worker |
@@ -89,6 +90,27 @@ changes restore relative divider proportions; each tab retains its scroll
 position. Pending drafts are submitted before switching tabs or changing
 hosting. Pending Text modification events are also flushed before asynchronous
 projections can overwrite them.
+
+Column restoration is coalesced at Tk idle after the row maps, resizes, or its
+hosting frames change geometry. Its cache includes achieved divider positions,
+not just outer width: nested panels can trigger a later paned-window layout at
+the same width. Restoration pauses during a sash drag; release captures the new
+presentation proportions before submitting them to Core. Pending callbacks are
+cancelled when rows are rebuilt. Two passes restore x3 dividers even when a
+divider must move beyond its neighbor's previous position. The existing workspace
+format stores these proportions and row heights across tab switches and restart.
+
+Captain's Log and Conversations additionally store `split-proportion` on their
+project panel record, independent of the hosting row. The field is optional for
+existing workspaces and defaults to 0.4 of the available width for the list.
+`panel_geometry.py` registers each active two-pane split, suspends restoration
+during dragging, and restores after map/resize/hosting-frame geometry changes.
+Only a user drag emits `SET_PANEL_SPLIT`; Core validates the finite proportion
+and supported panel type, then persists workspace through Mem/Disk. A panel
+shared across tabs shares its internal proportion. Widget rebuilds cancel pending
+restoration callbacks. Divider changes neither rebuild editor fields nor submit
+Captain's Log drafts. Conversations uses a paned window in place of its previous
+fixed grid so its internal split can also be adjusted.
 
 There are five permanent queues: Core, Mem, Disk, Image, and Core-to-Tk commands.
 Image is one supervised permanent worker in PyDeck, rather than Today's dynamic

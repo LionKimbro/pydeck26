@@ -50,7 +50,10 @@ def run():
                 if stage["value"] == -1 and view and view["ready"]:
                     tree = tk.widgets["conversation-tree"]
                     assert tuple(tree["columns"]) == ("date", "title", "hook")
-                    assert tree.master.master.grid_rowconfigure(2)["weight"] == 1
+                    pane = tk.widgets["conversation-pane"]
+                    assert str(tree.master) in pane.panes()
+                    assert len(pane.panes()) == 2
+                    assert pane.master.grid_rowconfigure(2)["weight"] == 1
                     scrollbar = next(child for child in tree.master.winfo_children()
                                      if child.winfo_class() == "TScrollbar")
                     assert tree.cget("yscrollcommand")

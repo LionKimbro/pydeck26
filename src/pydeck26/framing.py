@@ -118,6 +118,7 @@ def project_workspace(document):
         notebook.select(pages[g["selected-tab"]]["page"])
         if signature != g["signature"]:
             g["generation"] += 1
+            cancel_column_restorations()
             # Inactive pages are empty. Only one copy of each project instrument is live.
             for page in pages.values():
                 for child in page["body"].winfo_children():
@@ -137,8 +138,7 @@ def project_workspace(document):
                     live["height"] = record["height"]
                 if live["proportions"] != record["sash-proportions"]:
                     live["proportions"] = list(record["sash-proportions"])
-                    live["last-width"] = None
-                    apply_column_proportions(row_id)
+                    schedule_column_restoration(row_id)
     finally:
         g["projecting"] = False
 
@@ -186,13 +186,17 @@ def build_selected_tab_rows():
                 button.state(["disabled"])
         pane = ttk.Panedwindow(frame, orient="horizontal")
         pane.grid(row=0, column=1, sticky="nsew")
+        pane.bind("<ButtonPress-1>", lambda event, row_id=row_id: handle_when_column_drag_starts(event, row_id))
         pane.bind("<ButtonRelease-1>", lambda event, row_id=row_id: handle_when_user_releases_column_divider(row_id))
         rows[row_id] = {"frame": frame, "pane": pane, "last-width": None,
-                        "height": record["height"], "proportions": list(record["sash-proportions"])}
-        pane.bind("<Configure>", lambda event, row_id=row_id: apply_column_proportions(row_id))
+                        "height": record["height"], "proportions": list(record["sash-proportions"]),
+                        "restore-id": None, "restored-layout": None, "dragging": False}
+        pane.bind("<Configure>", lambda event, row_id=row_id: schedule_column_restoration(row_id))
+        pane.bind("<Map>", lambda event, row_id=row_id: schedule_column_restoration(row_id))
         for column in range(1, record["column-count"] + 1):
             target = workspace.position_id(row_id, column)
             host = ttk.Frame(pane)
+            host.bind("<Configure>", lambda event, row_id=row_id: schedule_column_restoration(row_id))
             pane.add(host, weight=1)
             slots[target] = {"host": host, "panel-id": document["positions"][target]["panel-id"]}
             build_position_host(target)
@@ -253,26 +257,56 @@ def handle_when_user_control_clicks_panel_delete(event, panel_id):
     return "break"
 
 
+def cancel_column_restorations():
+    for live in rows.values():
+        if live["restore-id"] is not None:
+            g["window"].after_cancel(live["restore-id"])
+            live["restore-id"] = None
+
+
+def schedule_column_restoration(row_id):
+    live = rows.get(row_id)
+    if live is not None and not live["dragging"] and live["restore-id"] is None:
+        live["restore-id"] = g["window"].after_idle(lambda: apply_column_proportions(row_id))
+
+
 def apply_column_proportions(row_id):
     if row_id not in rows or row_id not in g["document"]["rows"]:
         return
     widgets_for_row = rows[row_id]
+    widgets_for_row["restore-id"] = None
     pane = widgets_for_row["pane"]
     width = pane.winfo_width()
-    if width <= 1 or width == widgets_for_row["last-width"]:
+    if width <= 1 or not pane.winfo_ismapped() or widgets_for_row["dragging"]:
+        return
+    proportions = tuple(widgets_for_row["proportions"])
+    actual = tuple(pane.sashpos(index) for index in range(len(proportions)))
+    if (width, proportions, actual) == widgets_for_row["restored-layout"]:
         return
     widgets_for_row["last-width"] = width
-    for index, fraction in enumerate(g["document"]["rows"][row_id]["sash-proportions"]):
-        pane.sashpos(index, round(width * fraction))
+    # A second pass handles x3 dividers moving past their previous neighbors.
+    for unused in range(2):
+        for index, fraction in enumerate(proportions):
+            pane.sashpos(index, round(width * fraction))
+    # Remember the achieved layout too: nested widget requests can change sashes
+    # without changing the outer width. Clamped dividers must not cause an idle loop.
+    actual = tuple(pane.sashpos(index) for index in range(len(proportions)))
+    widgets_for_row["restored-layout"] = (width, proportions, actual)
 
 
 def restore_workspace_geometry(generation):
     if generation != g["generation"]:
         return
     for row_id in rows:
-        apply_column_proportions(row_id)
+        schedule_column_restoration(row_id)
     tab = workspace.get_tab(g["document"], g["selected-tab"])
     pages[tab["id"]]["canvas"].yview_moveto(tab.get("scroll-position", 0))
+
+
+def handle_when_column_drag_starts(event, row_id):
+    live = rows.get(row_id)
+    if live is not None:
+        live["dragging"] = live["pane"].identify(event.x, event.y) != ""
 
 
 def handle_when_user_releases_column_divider(row_id):
@@ -283,7 +317,10 @@ def handle_when_user_releases_column_divider(row_id):
     width = pane.winfo_width()
     if width > 1 and count > 1:
         proportions = [pane.sashpos(index) / width for index in range(count - 1)]
+        rows[row_id]["proportions"] = proportions
         request({"type": "SET_SASH_PROPORTIONS", "row-id": row_id, "proportions": proportions})
+    rows[row_id]["dragging"] = False
+    schedule_column_restoration(row_id)
 
 
 def build_row_resize_handle(parent, row_id):
