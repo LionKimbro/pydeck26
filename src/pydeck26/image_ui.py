@@ -58,6 +58,7 @@ def build_panel(details):
                                   command=lambda: handle_when_user_browses_image(panel))
     panel["browse"].pack(side="left", padx=4)
     panel["clear"] = ttk.Button(controls, text="Clear image", command=lambda: handle_when_user_clears_image(panel))
+    panel["clear-pen"] = ttk.Button(controls, text="Clear pen", command=lambda: handle_when_user_clears_pen(panel))
     panel["pen"] = ttk.Button(controls, text="Red pen", command=lambda: handle_when_user_toggles_pen(panel))
     canvas.bind("<Configure>", lambda event: handle_when_image_canvas_resizes(panel))
     canvas.bind("<Map>", lambda event: handle_when_image_canvas_resizes(panel))
@@ -93,9 +94,12 @@ def project_panels(document, states):
             panel["empty-controls"].pack(side="left")
             panel["pen"].pack_forget()
         if asset or panel["busy"]:
+            panel["clear-pen"].pack(side="right")
             panel["clear"].pack(side="right")
         else:
+            panel["clear-pen"].pack_forget()
             panel["clear"].pack_forget()
+        panel["clear-pen"].configure(state="normal" if asset and not panel["busy"] else "disabled")
         for key in ("paste", "browse"):
             panel[key].configure(state="disabled" if panel["busy"] else "normal")
         panel["pen"].configure(state="normal" if panel["photo"] and not panel["busy"] else "disabled")
@@ -138,6 +142,17 @@ def handle_when_user_clears_image(panel):
         panel["save-id"] = None
     panel.update({"stroke": None, "token": None, "requested": None})
     g["send"]({"type": "CLEAR_IMAGE", "panel-id": panel["id"]})
+
+
+def handle_when_user_clears_pen(panel):
+    if not panel["active"] or not panel["asset"] or panel["busy"] or g["is-closing"]():
+        return
+    if panel["save-id"] is not None:
+        g["window"].after_cancel(panel["save-id"])
+        panel["save-id"] = None
+    panel.update({"stroke": None, "strokes": []})
+    render_strokes(panel)
+    g["send"]({"type": "CLEAR_IMAGE_PEN", "panel-id": panel["id"], "image-asset": panel["asset"]})
 
 
 def handle_when_image_canvas_resizes(panel):

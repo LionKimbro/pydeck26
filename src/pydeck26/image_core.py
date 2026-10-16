@@ -9,7 +9,7 @@ imports = {}  # Panel ID -> current import token.
 previews = {}  # Panel ID -> current preview token.
 errors = {}  # Presentation-only; never canonical.
 EVENTS = {"IMPORT_IMAGE", "CLEAR_IMAGE", "IMAGE_PREVIEW", "IMAGE_IMPORTED",
-          "IMAGE_PREVIEW_RETURNED", "IMAGE_STROKE_ADDED", "SAVE_IMAGE"}
+          "IMAGE_PREVIEW_RETURNED", "IMAGE_STROKE_ADDED", "CLEAR_IMAGE_PEN", "SAVE_IMAGE"}
 
 
 def initialize_image_state():
@@ -99,5 +99,11 @@ def reduce_image_event(event):
             return
         panel.setdefault("image-strokes", []).append(deepcopy(event["stroke"]))
         core.touch_document("workspace")
+    elif kind == "CLEAR_IMAGE_PEN":
+        if not panel.get("image-asset") or panel["image-asset"] != event["image-asset"]:
+            return
+        panel["image-strokes"] = []
+        core.touch_document("workspace")
+        core.request_commit({"workspace"})
     elif kind == "SAVE_IMAGE":
         core.request_commit({"workspace"})
