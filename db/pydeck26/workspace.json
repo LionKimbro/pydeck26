@@ -22,10 +22,11 @@
       ]
     },
     "working": {
-      "column-count": 2,
+      "column-count": 3,
       "height": 278,
       "sash-proportions": [
-        0.5
+        0.4141535987133092,
+        0.5870526739043024
       ]
     },
     "whiteboard": {
@@ -54,6 +55,9 @@
     },
     "whiteboard/column-2": {
       "panel-id": "project-git"
+    },
+    "working/column-3": {
+      "panel-id": "f001ff93ec9a48789d7dd57e4a0946a6"
     }
   },
   "panels": {
@@ -92,6 +96,14 @@
       "type": "GIT",
       "label": "Git",
       "source": "project"
+    },
+    "f001ff93ec9a48789d7dd57e4a0946a6": {
+      "id": "f001ff93ec9a48789d7dd57e4a0946a6",
+      "type": "IMAGE",
+      "label": "Image",
+      "source": "workspace",
+      "image-asset": "assets/image-048ebf677f384da1be012275c7d81f8d.png",
+      "image-strokes": []
     }
   }
 }

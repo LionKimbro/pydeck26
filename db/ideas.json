@@ -32,7 +32,7 @@
       "guid": "0ee7b614-7f3b-4063-8c8b-f914b8241159",
       "title": "Git Changes and Commit Panel/Tab",
       "description": "Review changed and untracked files, inspect diffs, stage or unstage files, enter a commit message, and commit from within PyDeck.",
-      "status": "conceived",
+      "status": "implemented",
       "date-conceived": "before 2026-08-02",
       "date-entered": "2026-08-02",
       "notes": "",
