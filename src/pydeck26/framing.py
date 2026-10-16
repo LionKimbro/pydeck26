@@ -225,7 +225,7 @@ def build_position_host(target):
     choices = [{"label": f"{document['panels'][key]['type'].title()}: {document['panels'][key]['label']} ({key[:8]})",
                 "event": {"type": "HOST_PANEL", "panel-id": key}} for key in available]
     choices.extend(PANEL_CREATION_CHOICES)
-    choices.extend({"label": f"[+ {kind.title()}]", "event": {"type": "CREATE_PROJECT_PANEL", "panel-type": kind}}
+    choices.extend({"label": f"[+ {workspace.get_panel_label(kind)}]", "event": {"type": "CREATE_PROJECT_PANEL", "panel-type": kind}}
                    for key, kind in workspace.PROJECT_PANELS.items() if key not in document["panels"])
     selector = ttk.Combobox(header, values=[choice["label"] for choice in choices], state="readonly", width=24)
     selector.pack(side="left", fill="x", expand=True)

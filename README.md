@@ -20,6 +20,12 @@ The small **↑ Push** control activates when the branch is ahead of its configu
 
 Both Git lists include **File size** (bytes/KiB/MiB) and **Diff (+/− lines)**. Staged sizes describe the indexed version; unstaged sizes describe the file on disk. Diff counts compare HEAD to the index on the left and the index to the working file on the right. Untracked text is counted as additions, binary diffs show **Binary**, and deleted versions have size zero. Unavailable metrics, including submodules and conflicted diffs, show **—**.
 
+Choose **[+ Captain's Log]** for a chronological project journal. The permanent **<new entry>** row stays first and updates its local clock each minute. Select it, write a note on the right, optionally add a hook, space-separated lowercase tags (`a-z`, `0-9`, and `-`), and mark **Major** for a bold list entry. **Save** records the current date/time to the second; accidental same-second creations are ignored. Saved entries appear newest first. An empty hook uses a preview of the note.
+
+Editing and saving an entry appends a revision with a new GUID and a `supersedes` link; the original date/time is retained. Only the latest revision appears in the panel, with a red **Last edited …** note above Hook. Hold Ctrl to change **Save** to **Save Over**: Ctrl-clicking replaces the current revision in place, preserving its GUID and shadowing link, and removes its modified-on metadata. Older LSF sections remain intact. There is no entry deletion control.
+
+Drafts stay in Tk when switching entries or tabs; red list rows identify unsaved changes. Only the log's **Save** button posts an entry. Project Save, layout changes, and close do not post log drafts. Closing discards unsaved drafts without a dialog; already submitted saves finish before shutdown. The log is created on its first save at `db/pydeck26/captainslog.lsf`, using `lsf-lions-sectioned-format`. Every note body line is stored with two extra leading spaces and `indent: 2`, allowing literal `== section-like text ==` inside notes. The editor removes that storage indentation.
+
 Use **+ Tab**, **Rename tab**, and **Remove tab** in the toolbar, and **+ Add row** at the bottom of the tab. A row's rail offers **x1/x2/x3**, **↑/↓** to reorder it, and **×** to remove it. Drag column dividers to change widths and the shaded edge beneath a row to change its height. Tabs scroll vertically and remember their position. Removing tabs or rows preserves their panels so they can be hosted again.
 
 ## Run

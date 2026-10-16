@@ -21,6 +21,7 @@ def read_project_bundle():
         "ideas": storage.load_ideas(root),
         "resources": storage.load_resources(root),
         "workspace": storage.load_workspace(root),
+        "captains-log": storage.load_captains_log(root),
         "history": storage.list_snapshots(root),
     }
 
@@ -39,6 +40,7 @@ def handle_when_disk_writes_project_documents():
         "ideas": storage.save_ideas,
         "resources": storage.save_resources,
         "workspace": storage.save_workspace,
+        "captains-log": storage.save_captains_log,
     }
     for key, value in ms.get_register("documents").items():
         writers[key](g["project-root"], value)

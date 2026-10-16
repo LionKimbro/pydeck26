@@ -7,7 +7,7 @@ from pathlib import Path
 import re
 from uuid import uuid4
 
-from . import git_core, image_core, machine, mobile_stacks as ms, workspace
+from . import captains_log_core, git_core, image_core, machine, mobile_stacks as ms, workspace
 
 g = {
     "revision": 0, "ready": False, "initialized": False, "seq": 0,
@@ -27,6 +27,7 @@ effects = []
 
 
 def initialize_core_state():
+    captains_log_core.initialize_log_state()
     git_core.initialize_git_state()
     image_core.initialize_image_state()
     g.update({"revision": 0, "ready": False, "initialized": False, "seq": 0,
@@ -63,6 +64,7 @@ def publish_view():
         "view-index": g["view-index"], "view-text": g["view-text"],
         "history-count": len(get_history_items()), "status": g["status"],
         "image-states": image_core.get_rendering(),
+        "captains-log-entries": deepcopy(captains_log_core.entries),
     }})
 
 
@@ -123,9 +125,10 @@ def reduce_event(event):
         bundle = event["bundle"]
         retained = deepcopy({key: documents[key] for key in dirty})
         documents.update({key: bundle[key] for key in (
-            "whiteboard", "dictionary", "conversations", "ideas", "resources", "workspace",
+            "whiteboard", "dictionary", "conversations", "ideas", "resources", "workspace", "captains-log",
         )})
         documents.update(retained)
+        captains_log_core.install_document(documents["captains-log"])
         g["snapshot"] = bundle["snapshot"]
         if documents["dictionary"] is None:
             name = bundle["snapshot"]["identity"].get("name") or Path(bundle["snapshot"]["root"]).name
@@ -152,6 +155,7 @@ def reduce_event(event):
             g["selected-conversation-id"] = max(items, key=lambda item: str(item.get("date") or ""))["id"]
         g["status"] = "Current" if g["initialized"] else "Initialize PyDeck 26 to save project state."
     elif kind == "COMMIT_RETURNED":
+        captains_log_core.accept_persisted_commit(event)
         g["revision"] = event["revision"]
         for key, generation in event["generations"].items():
             if generations[key] == generation:
@@ -175,6 +179,8 @@ def reduce_event(event):
         request_commit(dirty | {"whiteboard", "workspace"})
     elif kind == "GIT_REQUEST":
         git_core.reduce_git_event(event)
+    elif kind == "CAPTAINS_LOG_SAVE":
+        captains_log_core.save_draft(event)
     elif kind in image_core.EVENTS:
         image_core.reduce_image_event(event)
     elif kind in workspace.LAYOUT_EVENTS:

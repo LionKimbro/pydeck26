@@ -18,6 +18,9 @@ Today's `docs/architecture-review.md` and current `src/today` implementation.
 | `git_ui.py` | Checkboxes, commit draft, menus, read-only file/diff viewers, independent repository presentation | Main thread |
 | `git_core.py` | Git request identities, serialization, repository snapshots, result acceptance | Core worker |
 | `git_worker.py` | Git subprocesses, status parsing, repository file reads/deletion, fetch/push | Temporary Git instance |
+| `captains_log.py` | LSF conversion, validation, revision chains, independent log record operations | Pure operations; LSF I/O via Disk |
+| `captains_log_core.py` | Save validation, working proposals, durable entry projection and generation-indexed acknowledgments | Core worker |
+| `captains_log_ui.py` | Entry drafts, selections, minute clock, modifier state, log widgets | Main thread |
 | `machine.py` | Permanent/dynamic runtime registry, thread-local runtime selection, supervised workers, routing, lifecycle and fatal latch | Shared mechanics |
 | `mobile_stacks.py` | Traveling continuation frames and registers | Accessed through each worker's runtime |
 | `main.py` | Project-root binding, queues, startup, main loop and final joins | Main thread |
@@ -287,6 +290,45 @@ available only when ahead with no behind count; branches without an upstream
 need configuration outside the panel. Behind/diverged branches require an
 external pull/reconciliation. File viewers cap text at 2 MiB and identify binaries.
 
+## Captain's Log
+
+The optional `project-captains-log` instrument hosts the `captains-log` document.
+Disk loads `db/pydeck26/captainslog.lsf` through `lsf.loadstr`; absence produces an
+in-memory header only and never creates a file at startup. Mem owns an independent
+canonical LSF section list and validates it at load and commit boundaries. Core
+owns a working copy. Disk writes `lsf.savestr` output using atomic replacement.
+
+Every entry has a GUID, date/time to seconds, optional hook, space-separated tags,
+major flag, and `indent: 2`. Body lines, including blanks, receive exactly two
+storage-prefix spaces so section-like lines remain body text. Existing indentation
+is retained after that prefix. Unrecognized metadata and the file header survive
+saves. Normal revisions append a fresh GUID with `supersedes` and `modified-on`,
+preserving original date/time and previous sections. Current entries are GUIDs
+not referenced by another revision. Validation rejects duplicate GUIDs, stale or
+branching supersession, and mismatched revision timestamps. Ctrl+Save Over replaces
+the current section at its existing index, keeps its GUID and supersedes link,
+and removes modified-on metadata. New creations are ignored if their original
+date/time second is already present; revisions are exempt from that guard.
+
+Tk owns drafts keyed by entry GUID plus one permanent `new` draft. Entry variables
+and Text modifications capture edits locally; no draft is sent to Core until the
+log Save button is used. Drafts survive entry/tab/hosting changes until process
+exit. A minute-boundary callback updates the new-entry row inside Tk, including
+date rollover, with no reducer message. Major entries are bold; dirty rows are
+red even when selected. Saved revisions show Last edited before the hook field.
+
+Save submits a copied draft, expected entry, overwrite intent, and request ID.
+Core checks the current GUID/version, validates fields, takes its own local Save
+timestamp, mutates an independent proposal, and requests the ordinary Mem/Disk
+commit. Its log presentation remains at the last persisted generation. Only a
+COMMIT_RETURNED from Disk advances that presentation and acknowledges matching
+save requests. Log acknowledgments bypass general project sequence filtering.
+Tk clears/rekeys only the submitted draft, preserving newer typing and insertion
+position during a held write; a rejected draft stays editable. No project save,
+framing flush, or shutdown event implicitly posts log drafts. Normal close waits
+for explicitly submitted saves, then discards remaining Tk drafts without a dialog.
+Shared multi-panel close dialogs remain a separate idea in `db/ideas.json`.
+
 ## Shutdown and failure
 
 Normal close flushes pending widget drafts and additional JSON, then sends a
@@ -308,6 +350,14 @@ termination handles an arbitrary worker stuck inside a handler. Git subprocesses
 have their own bounded timeout as described above.
 
 ## Verification
+
+`test_captains_log.py` checks LSF body fidelity, literal section delimiters,
+metadata preservation, tag validation, same-second creation guards, revision
+shadowing, in-place overwrite, durable acknowledgments, independent machine
+ownership, and close during a held write. `gui_captains_log.py` exercises actual
+Tk hosting, draft styling, newer typing during a held save, revisions and Ctrl-click
+Save Over, minute/date rollover without Core events, tab changes, and discard on
+exit followed by restart. It never creates notes in the real project.
 
 `test_dynamic_machines.py` exercises unique creation addresses, continuations
 through another machine, explicit retirement, Main-only reaping, shutdown gates,

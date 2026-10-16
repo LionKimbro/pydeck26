@@ -70,6 +70,17 @@ def get_resources_path(root: Path) -> Path:
     return get_pydeck_data_dir(root) / "resources.json"
 
 
+def load_captains_log(root: Path) -> dict:
+    from . import captains_log
+    path = get_pydeck_data_dir(root) / "captainslog.lsf"
+    return captains_log.load_text(path.read_text(encoding="utf-8")) if path.is_file() else captains_log.make_document()
+
+
+def save_captains_log(root: Path, document: dict) -> None:
+    from . import captains_log
+    write_text_atomic(get_pydeck_data_dir(root) / "captainslog.lsf", captains_log.save_text(document))
+
+
 def load_workspace(root: Path) -> dict | None:
     """Read the optional framing document without creating it during startup."""
     path = get_pydeck_data_dir(root) / "workspace.json"

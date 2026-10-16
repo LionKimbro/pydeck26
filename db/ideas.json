@@ -37,7 +37,7 @@
       "date-entered": "2026-08-02",
       "notes": "",
       "tags": [],
-      "pinned": true
+      "pinned": false
     },
     {
       "guid": "347406cf-930f-47a1-9030-e11c7160e63e",
@@ -169,12 +169,12 @@
       "guid": "20003891-9bba-4ed4-be2c-1db870fc0bf6",
       "title": "Captain's Log",
       "description": "\"Captain's Log, Stardate, 2026.08.20...\"",
-      "status": "conceived",
+      "status": "implemented",
       "date-conceived": "2026-08-02",
       "date-entered": "2026-08-02",
       "notes": "In 2026-08-02, I came up with a project's projected timeline (see: 20003891-9bba-4ed4-be2c-1db870fc0bf6,) but on 2026-08-07 I had the insight to interpret it as a \"Captain's Log.\"  -- Which I think is a superior, much more useful idea!, at least initially.\n\nRight now, I use snapshots on the Whiteboard as the Captain's Log, but -- I think it would serve much more utility outside the Whiteboard.\n\nThis might go in its own tab.\nPerhaps the Dictionary might move into that tab as well.",
       "tags": [],
-      "pinned": true
+      "pinned": false
     },
     {
       "guid": "c77330eb-d327-472e-aabc-b1b79e34e036",

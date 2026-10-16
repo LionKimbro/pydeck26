@@ -7,6 +7,7 @@ PROJECT_PANELS = {
     "project-structure": "STRUCTURE", "project-dictionary": "DICTIONARY",
     "project-conversations": "CONVERSATIONS", "project-ideas": "IDEAS",
     "project-whiteboard": "WHITEBOARD", "project-git": "GIT",
+    "project-captains-log": "CAPTAINS_LOG",
 }
 LAYOUT_EVENTS = {
     "CREATE_TAB", "SELECT_TAB", "RENAME_TAB", "DELETE_TAB", "ADD_ROW", "DELETE_ROW",
@@ -20,6 +21,10 @@ def position_id(row_id, column):
     return f"{row_id}/column-{column}"
 
 
+def get_panel_label(kind):
+    return "Captain's Log" if kind == "CAPTAINS_LOG" else kind.title()
+
+
 def make_default_workspace():
     document = {
         "version": 1, "selected-tab-id": "cockpit", "tabs": [
@@ -27,7 +32,7 @@ def make_default_workspace():
         ],
         "rows": {}, "positions": {}, "panels": {
             panel_id: {"id": panel_id, "type": kind, "label": kind.title(), "source": "project"}
-            for panel_id, kind in PROJECT_PANELS.items() if kind != "GIT"
+            for panel_id, kind in PROJECT_PANELS.items() if kind not in {"GIT", "CAPTAINS_LOG"}
         },
     }
     for row_id, height, panels in (
@@ -173,7 +178,7 @@ def apply_layout_event(document, event):
                 if panel_id is None or panel_id in document["panels"]:
                     raise ValueError("That project panel already exists or its type is unavailable.")
                 document["panels"][panel_id] = {"id": panel_id, "type": event["panel-type"],
-                    "label": event["panel-type"].title(), "source": "project"}
+                    "label": get_panel_label(event["panel-type"]), "source": "project"}
             elif panel_id not in document["panels"]:
                 raise ValueError("That panel is no longer available.")
             current = document["positions"][target]["panel-id"]

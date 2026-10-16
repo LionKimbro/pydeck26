@@ -10,14 +10,13 @@
         "working",
         "whiteboard"
       ],
-      "scroll-position": 0.0729483282674772
+      "scroll-position": 0.1094224924012158
     },
     {
       "id": "31af4ffe5413489d9abe13569e0b73ab",
       "label": "History",
       "row-ids": [
-        "cf127eeb02a143a4aa7ce2142451773a",
-        "0553e7df004c4dabaced8286b94ec3f8"
+        "cf127eeb02a143a4aa7ce2142451773a"
       ],
       "scroll-position": 0.0
     }
@@ -45,14 +44,11 @@
       ]
     },
     "cf127eeb02a143a4aa7ce2142451773a": {
-      "column-count": 1,
-      "height": 260,
-      "sash-proportions": []
-    },
-    "0553e7df004c4dabaced8286b94ec3f8": {
-      "column-count": 1,
-      "height": 627,
-      "sash-proportions": []
+      "column-count": 2,
+      "height": 538,
+      "sash-proportions": [
+        0.3558504221954162
+      ]
     }
   },
   "positions": {
@@ -77,8 +73,8 @@
     "cf127eeb02a143a4aa7ce2142451773a/column-1": {
       "panel-id": "project-dictionary"
     },
-    "0553e7df004c4dabaced8286b94ec3f8/column-1": {
-      "panel-id": null
+    "cf127eeb02a143a4aa7ce2142451773a/column-2": {
+      "panel-id": "project-captains-log"
     }
   },
   "panels": {
@@ -125,6 +121,12 @@
       "source": "workspace",
       "image-asset": "assets/image-048ebf677f384da1be012275c7d81f8d.png",
       "image-strokes": []
+    },
+    "project-captains-log": {
+      "id": "project-captains-log",
+      "type": "CAPTAINS_LOG",
+      "label": "Captain's Log",
+      "source": "project"
     }
   }
 }

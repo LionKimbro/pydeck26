@@ -12,7 +12,7 @@ import webbrowser
 
 import lionscliapp as app
 
-from . import description_editor, framing, full_dictionary_editor, git_ui, ideas, image_ui, machine, resource_editor
+from . import captains_log_ui, description_editor, framing, full_dictionary_editor, git_ui, ideas, image_ui, machine, resource_editor
 
 g = {"project-root": None, "commands": None, "seq": 0, "view": None,
      "projecting": False, "closing": False, "conversation-id": None,
@@ -71,6 +71,8 @@ def handle_when_polling_core_commands():
                 image_ui.apply_preview(command)
             elif command["type"] == "GIT_STATE":
                 git_ui.project_git_state(command)
+            elif command["type"] == "CAPTAINS_LOG_RESULT":
+                captains_log_ui.apply_result(command)
     except Empty:
         pass
     root.after(20, handle_when_polling_core_commands)
@@ -86,6 +88,7 @@ def project_core_state(view):
         documents = view["documents"]
         framing.project_workspace(documents["workspace"])
         image_ui.project_panels(documents["workspace"], view.get("image-states", {}))
+        captains_log_ui.project_entries(view.get("captains-log-entries", []), view["initialized"])
         identity = documents["dictionary"]["identity"]
         title = identity.get("title") or identity.get("name") or g["project-root"].name
         widgets["title"].configure(text=f"PyDeck 26: {title}")
@@ -388,6 +391,7 @@ def handle_when_user_initializes_project():
 
 
 def flush_editor_drafts():
+    captains_log_ui.capture_draft()
     image_ui.flush_strokes()
     handle_when_dictionary_editor_changes()
     handle_when_conversation_editor_changes()
@@ -399,12 +403,14 @@ def flush_editor_drafts():
 
 def flush_pending_text_edits():
     """Publish queued Text modifications before an asynchronous projection can replace them."""
+    captains_log_ui.capture_draft()
     handle_when_whiteboard_text_changes()
     for panel_id in list(notes_editors):
         handle_when_notes_text_changes(panel_id)
 
 
 def clear_panel_widgets():
+    captains_log_ui.clear_panels()
     git_ui.clear_panels()
     image_ui.clear_panels()
     for key in list(widgets):
@@ -417,6 +423,8 @@ def clear_panel_widgets():
 
 def build_hosted_panel(details):
     panel = details["panel"]
+    if panel["type"] == "CAPTAINS_LOG":
+        return captains_log_ui.build_panel(details)
     if panel["type"] == "GIT":
         return git_ui.build_panel(details)
     if panel["type"] == "IMAGE":
@@ -518,6 +526,7 @@ def realize_main_cockpit_window(root: tk.Tk) -> None:
     widgets["window"] = window
     image_ui.initialize_context({"send": send, "window": window, "is-closing": lambda: g["closing"]})
     git_ui.initialize_context({"send": send, "window": window, "is-closing": lambda: g["closing"]})
+    captains_log_ui.initialize_context({"send": send, "window": window, "is-closing": lambda: g["closing"]})
     window.bind_all("<Control-s>", handle_when_user_uses_project_save_shortcut)
     build_masthead(window)
     build_cockpit_surface(window)
