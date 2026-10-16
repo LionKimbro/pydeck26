@@ -191,6 +191,36 @@
         "illustration"
       ],
       "pinned": false
+    },
+    {
+      "guid": "4756e56e-15d9-4d37-a595-ba70921fa1b9",
+      "title": "Coordinated close dialogs for unsaved panel drafts",
+      "description": "Coordinate unsaved drafts across multiple panels before closing PyDeck, using the existing Tk pre-shutdown veto and a shared Save all / Discard / Cancel dialog.",
+      "status": "conceived",
+      "date-conceived": "2026-10-15",
+      "date-entered": "2026-10-15",
+      "notes": "Deferred deliberately while designing the Captain's Log. For its initial implementation, allow exit and discard unsaved Captain's Log drafts; do not create log entries automatically during close. Existing saved entries and existing close behavior in other editors are unaffected.\n\nProposed future design: panels register Tk-owned close checks that report unsaved drafts and validation problems. Collect claims from all panels before sending SHUTDOWN to Core. Show one dialog listing the affected panels and drafts, with Save all, Discard, and Cancel. Cancel leaves the application open and drafts intact. Discard explicitly abandons the reported drafts. Save all invokes each panel's normal validated save operation, including Captain's Log append-revision semantics, and proceeds only after all required saves succeed. Invalid drafts or failed saves keep the application open with actionable feedback.\n\nThe existing close handler already allows draft flushing to veto exit before workers begin shutdown; generalize that gate rather than adding reducer shutdown rollback. Account for multiple panels and editor windows, prevent duplicate or reentrant close prompts, and keep drafts editable or recoverable after a cancellation or failure. Reuse the existing Core/Mem/Disk persistence barrier once pre-close checks and saves are complete. A partially successful Save all need not undo saves already accepted, but failures must be reported clearly.\n\nVerification should cover multiple simultaneous claims, Cancel preserving every draft, Discard without unintended saves, invalid drafts, delayed or failed persistence, repeated close requests, and successful shutdown with no surviving workers.",
+      "tags": [
+        "architecture",
+        "shutdown",
+        "drafts",
+        "ui"
+      ],
+      "pinned": true
+    },
+    {
+      "guid": "3bac6ffc-26db-4488-be08-061b4b889b29",
+      "title": "Separate Standard, Uniques, and New, in the Panel drop-down",
+      "description": "When you're dropping down to add a panel to a host, it shows everything the same, even though there are three distinct categories.\n\nOh, by the way, whiteboard needs to be made individually distinct, not a single whiteboard for everything in the project.",
+      "status": "conceived",
+      "date-conceived": "2026-10-15",
+      "date-entered": "2026-10-15",
+      "notes": "Choose a panel...\n--------------------------------------------\nStandard Panels\n  Structure\n  Conversations\n  Ideas\n  Git\n  Captain's Log\nExisting Custom Panels\n  Image (f001ff93)\n  Whiteboard (340da394)\nNew Panels\n  [+ Image]\n  [+ Whiteboard]\n  [+ Notes]\n",
+      "tags": [
+        "panel",
+        "host"
+      ],
+      "pinned": true
     }
   ]
 }
