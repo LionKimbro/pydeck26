@@ -56,15 +56,15 @@ def build_panel(details):
     push.pack(side="right")
     dot = tk.Label(header, text="●", foreground=COLORS["muted"], background=COLORS["panel"])
     dot.pack(side="right", padx=4)
-    repository = ttk.Label(parent, anchor="w")
-    repository.grid(row=1, column=0, sticky="ew", padx=8)
+    branch = tk.Label(header, foreground=COLORS["accent"], background=COLORS["panel"])
+    branch.pack(side="right")
     columns = ttk.Frame(parent)
     columns.grid(row=2, column=0, sticky="nsew", padx=8, pady=4)
     columns.rowconfigure(0, weight=1)
     parent.rowconfigure(0, weight=0)
     parent.rowconfigure(2, weight=1)
     parent.columnconfigure(0, weight=1)
-    panel = {"id": details["panel"]["id"], "parent": parent, "repository": repository,
+    panel = {"id": details["panel"]["id"], "parent": parent, "branch": branch,
              "refresh": refresh, "push": push, "dot": dot, "lists": {}, "buttons": {}}
     panels[panel["id"]] = panel
     for number, side in enumerate(("staged", "unstaged")):
@@ -137,7 +137,6 @@ def build_panel(details):
 def handle_when_panel_resizes(panel):
     width = max(80, panel["parent"].winfo_width() - 20)
     panel["status"].configure(wraplength=max(60, width - panel["dismiss"].winfo_reqwidth() - 8))
-    panel["repository"].configure(wraplength=width)
     panel["commit-caption"].configure(wraplength=width)
     for listing in panel["lists"].values():
         listing["title"].configure(wraplength=max(60, width // 2 - 12))
@@ -173,20 +172,20 @@ def project_panel(panel):
     project_output(panel)
     panel["refresh"].state(["disabled" if busy else "!disabled"])
     if snapshot is None:
-        panel["repository"].configure(text="Repository unavailable" if not busy else "Inspecting repository…")
-        indicator, color, can_push = "", COLORS["muted"], False
+        panel["branch"].configure(text="")
+        color, can_push = COLORS["muted"], False
     else:
         ahead, behind = snapshot["ahead"], snapshot["behind"]
         if not snapshot["upstream"]:
-            indicator, color = "No upstream configured", COLORS["muted"]
+            color = COLORS["muted"]
         elif behind:
-            indicator, color = f"↑{ahead} ↓{behind} · {'Diverged' if ahead else 'Behind'} · {snapshot['upstream']}", COLORS["danger"]
+            color = COLORS["danger"]
         elif ahead:
-            indicator, color = f"↑{ahead} · Ready to push · {snapshot['upstream']}", COLORS["warning"]
+            color = COLORS["warning"]
         else:
-            indicator, color = f"Synchronized · {snapshot['upstream']}", COLORS["accent"]
+            color = COLORS["accent"]
         can_push = bool(snapshot["upstream"] and ahead and not behind)
-        panel["repository"].configure(text=f"{snapshot['root']} · {snapshot['branch']}\n{indicator}")
+        panel["branch"].configure(text=snapshot["branch"])
     panel["dot"].configure(foreground=color)
     panel["push"].state(["!disabled" if can_push and not busy else "disabled"])
     for side, listing in panel["lists"].items():
