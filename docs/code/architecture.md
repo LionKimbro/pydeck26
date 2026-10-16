@@ -218,6 +218,21 @@ replacing unchanged entry/text contents. Additional JSON uses valid-only
 debounced submission; pending edits are checked before save/close. Invalid
 JSON never overwrites the last valid document.
 
+Conversation Entry fields use StringVar write traces to capture edits during
+the widget change, including paste/IME updates, rather than waiting for
+KeyRelease. `tk.conversation_draft` owns the current record ID and last submitted
+field values. Edits are compared with that draft, so returning to an earlier
+value before Core acknowledges it still submits the change. Same-record Core
+views and save acknowledgements update the list/status, not the live editor
+fields. Another record selection or newly built widgets explicitly loads the
+editor. Conversation rows reconcile by identity without clearing/reselecting
+the whole tree during typing, preserving list scroll and selection.
+
+This follows Today's ordinary `TEXT_CHANGED`/save-acceptance behavior: working
+state changes do not automatically emit text replacement commands. The prior
+KeyRelease binding left a gap after KeyPress inserted text but before it had a
+sequence number; an older accepted view could replace the new text in that gap.
+
 ## Shutdown and failure
 
 Normal close flushes pending widget drafts and additional JSON, then sends a
@@ -271,3 +286,10 @@ worker failure, and immutable source/assets. `test_gui_image.py` runs a real-Tk
 roundtrip: dropdown creation, browse callback, fit, red-pen strokes, resize,
 close during an active stroke, restart, clear, and a dropped path with spaces.
 Clipboard interoperability and physical OS drag gestures remain manual checks.
+
+`test_gui_conversation_typing.py` holds Core while Entry changes are made and
+older views arrive before KeyRelease. It checks all conversation fields,
+cursor/selection/list-scroll preservation, same-record refreshes, reverting
+unacknowledged edits, variable-driven input, navigation, and persisted results.
+The standalone reproduction's optional `--baseline` mode loads the old handlers
+from revision `8e8227b`; it reproduces the original replacement before the fix.

@@ -17,6 +17,7 @@ g = {"project-root": None, "commands": None, "seq": 0, "view": None,
      "resource-index": None}
 widgets = {}  # Tk objects never leave the main thread.
 notes_editors = {}  # Panel identity -> active tab's independent Notes Text widget.
+conversation_draft = {"id": None, "fields": {}}  # Tk-owned current draft/last submission.
 
 
 def initialize_tk_state(project_root):
@@ -25,6 +26,7 @@ def initialize_tk_state(project_root):
               "conversation-id": None, "resource-index": None})
     widgets.clear()
     notes_editors.clear()
+    conversation_draft.update({"id": None, "fields": {}})
 
 
 def send(event):
@@ -160,17 +162,33 @@ def project_conversation_rows(document, selected_id):
         g["conversation-id"] = None
         return
     tree = widgets["conversation-tree"]
-    tree.delete(*tree.get_children())
-    for item in sorted(document["items"], key=lambda item: str(item.get("date") or ""), reverse=True):
-        tree.insert("", "end", iid=item["id"],
-                    values=tuple(item.get(key, "") for key in ("date", "title", "hook")))
+    ordered = sorted(document["items"], key=lambda item: str(item.get("date") or ""), reverse=True)
+    wanted = {item["id"] for item in ordered}
+    for item_id in tree.get_children():
+        if item_id not in wanted:
+            tree.delete(item_id)
+    for index, item in enumerate(ordered):
+        item_id = item["id"]
+        values = tuple(str(item.get(key) or "") for key in ("date", "title", "hook"))
+        if tree.exists(item_id):
+            if tree.item(item_id, "values") != values:
+                tree.item(item_id, values=values)
+            if tree.index(item_id) != index:
+                tree.move(item_id, "", index)
+        else:
+            tree.insert("", index, iid=item_id, values=values)
     g["conversation-id"] = selected_id
     item = next((item for item in document["items"] if item["id"] == selected_id), {})
-    if selected_id and tree.exists(selected_id):
+    if selected_id and tree.exists(selected_id) and tree.selection() != (selected_id,):
         tree.selection_set(selected_id)
         tree.focus(selected_id)
-    for key in ("date", "title", "url", "hook"):
-        set_entry_text(widgets[f"conversation-{key}"], item.get(key, ""))
+    # Loading another record (or rebuilding its widgets) is an explicit editor load.
+    # Routine projections/save acknowledgements must not echo text into the live draft.
+    if selected_id != conversation_draft["id"]:
+        fields = {key: str(item.get(key) or "") for key in ("date", "title", "url", "hook")}
+        for key, value in fields.items():
+            set_entry_text(widgets[f"conversation-{key}"], value)
+        conversation_draft.update({"id": selected_id, "fields": fields})
     widgets["conversation-description"].configure(text=item.get("description", ""))
 
 
@@ -206,9 +224,8 @@ def handle_when_conversation_editor_changes(event=None):
     if g["conversation-id"] is None or g["projecting"]:
         return
     fields = {key: widgets[f"conversation-{key}"].get() for key in ("date", "title", "url", "hook")}
-    old = next((item for item in g["view"]["documents"]["conversations"]["items"]
-                if item["id"] == g["conversation-id"]), {})
-    if any(fields[key] != old.get(key, "") for key in fields):
+    if fields != conversation_draft["fields"]:
+        conversation_draft.update({"id": g["conversation-id"], "fields": dict(fields)})
         send({"type": "CONVERSATION_EDIT", "id": g["conversation-id"], "fields": fields})
 
 
@@ -389,6 +406,7 @@ def clear_panel_widgets():
             del widgets[key]
     notes_editors.clear()
     g["conversation-id"] = None
+    conversation_draft.update({"id": None, "fields": {}})
 
 
 def build_hosted_panel(details):
@@ -655,8 +673,6 @@ def build_conversations_card() -> tk.Frame:
     description.grid(row=4, column=0, columnspan=3, sticky="ew", pady=(7, 0))
     description.bind("<Double-Button-1>", handle_when_user_double_clicks_conversation_description)
     ttk.Button(editor, text="Save", width=4, command=handle_when_user_saves_conversation_to_memory).grid(row=5, column=2, sticky="e", pady=(6, 0))
-    for entry in [date_entry, title_entry, url_entry, hook_entry]:
-        entry.bind("<KeyRelease>", handle_when_conversation_editor_changes)
     widgets["conversation-tree"] = tree
     widgets["conversation-date"] = date_entry
     widgets["conversation-title"] = title_entry
@@ -669,7 +685,10 @@ def build_conversations_card() -> tk.Frame:
 def build_conversation_entry(parent: tk.Frame, label: str, row: int) -> ttk.Entry:
     """Create one compact labeled conversation entry field."""
     ttk.Label(parent, text=label).grid(row=row, column=0, sticky="w", padx=(0, 6), pady=2)
-    entry = ttk.Entry(parent)
+    variable = tk.StringVar(parent)
+    entry = ttk.Entry(parent, textvariable=variable)
+    widgets[f"conversation-{label.lower()}-variable"] = variable
+    variable.trace_add("write", lambda *args: handle_when_conversation_editor_changes())
     entry.grid(row=row, column=1, sticky="ew", pady=2)
     return entry
 
