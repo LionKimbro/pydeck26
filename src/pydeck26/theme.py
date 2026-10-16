@@ -21,6 +21,8 @@ COLORS = {
     "error-surface": "#35231d",
     "error-highlight": "#704333",
     "error-text": "#ffc2a5",
+    "warning": "#efc875",
+    "danger": "#f28b82",
 }
 
 

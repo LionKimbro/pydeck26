@@ -6,7 +6,7 @@ import re
 PROJECT_PANELS = {
     "project-structure": "STRUCTURE", "project-dictionary": "DICTIONARY",
     "project-conversations": "CONVERSATIONS", "project-ideas": "IDEAS",
-    "project-whiteboard": "WHITEBOARD",
+    "project-whiteboard": "WHITEBOARD", "project-git": "GIT",
 }
 LAYOUT_EVENTS = {
     "CREATE_TAB", "SELECT_TAB", "RENAME_TAB", "DELETE_TAB", "ADD_ROW", "DELETE_ROW",
@@ -27,7 +27,7 @@ def make_default_workspace():
         ],
         "rows": {}, "positions": {}, "panels": {
             panel_id: {"id": panel_id, "type": kind, "label": kind.title(), "source": "project"}
-            for panel_id, kind in PROJECT_PANELS.items()
+            for panel_id, kind in PROJECT_PANELS.items() if kind != "GIT"
         },
     }
     for row_id, height, panels in (

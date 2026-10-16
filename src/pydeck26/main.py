@@ -3,12 +3,13 @@
 from pathlib import Path
 from queue import Queue
 
-from . import core, disk, image, machine, mem
+from . import core, disk, git_worker, image, machine, mem
 
 
 def start_project_workers(project_root):
     """Wire a fixed project root and start the supervised project/image workers."""
     machine.initialize_machine_system()
+    machine.install_machine_kind("GIT", git_worker.HANDLERS)
     disk.g["project-root"] = Path(project_root).resolve()
     mem.documents.clear()
     mem.g.update({"revision": 0, "initialized": False})
@@ -26,6 +27,11 @@ def start_project_workers(project_root):
 def finish_worker_shutdown():
     """Stop producers before Disk; ordinary close has already confirmed writes."""
     machine.join_machine("CORE")
+    machine.begin_shutdown()
+    for runtime in machine.get_machine_runtimes():
+        if runtime["dynamic"]:
+            runtime["thread"].join()
+    machine.reap_exited_machines()
     machine.machines["IMAGE"]["inbox"].put(None)
     machine.join_machine("IMAGE")
     machine.join_machine("MEM")

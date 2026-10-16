@@ -1,6 +1,6 @@
 # PyDeck 26 machine architecture
 
-This is the current implementation map, updated 2026-10-14. The reference is
+This is the current implementation map, updated 2026-10-15. The reference is
 Today's `docs/architecture-review.md` and current `src/today` implementation.
 
 ## Ownership
@@ -15,7 +15,10 @@ Today's `docs/architecture-review.md` and current `src/today` implementation.
 | `image.py` | Clipboard acquisition, image validation, EXIF correction, fitted RGBA preview preparation | Image worker |
 | `image_core.py` | Import/preview request tokens, presentation errors, working drawing edits | Core worker |
 | `image_ui.py` | Native image input controls/drop reception, Tk image objects, normalized drawing drafts | Main thread |
-| `machine.py` | Permanent runtime registry, thread-local runtime selection, supervised workers, routing, lifecycle and fatal latch | Shared mechanics |
+| `git_ui.py` | Checkboxes, commit draft, menus, read-only file/diff viewers, independent repository presentation | Main thread |
+| `git_core.py` | Git request identities, serialization, repository snapshots, result acceptance | Core worker |
+| `git_worker.py` | Git subprocesses, status parsing, repository file reads/deletion, fetch/push | Temporary Git instance |
+| `machine.py` | Permanent/dynamic runtime registry, thread-local runtime selection, supervised workers, routing, lifecycle and fatal latch | Shared mechanics |
 | `mobile_stacks.py` | Traveling continuation frames and registers | Accessed through each worker's runtime |
 | `main.py` | Project-root binding, queues, startup, main loop and final joins | Main thread |
 | `storage.py` | Existing synchronous text/JSON primitives; used by Disk during GUI execution and by the standalone CLI init command | Disk or CLI |
@@ -234,6 +237,56 @@ state changes do not automatically emit text replacement commands. The prior
 KeyRelease binding left a gap after KeyPress inserted text but before it had a
 sequence number; an older accepted view could replace the new text in that gap.
 
+## Git panel and temporary machines
+
+Git is an optional `project-git` instrument created through `[+ Git]`, retaining
+the original default cockpit layout. It inspects the enclosing repository from
+the fixed project root. Repository state is transient; Mem stores only hosting
+records. Tk owns the commit-message draft and selected paths. Git state/viewer
+commands bypass project-document sequence filtering and never replace that draft.
+Only successful commits clear it, and only when it still matches the submitted
+message. Refreshing reconciles file rows without resetting existing selections.
+
+Core serializes all Git requests. A frame destination `{"new": "GIT"}` asks the
+router to create a unique `GIT-<uuid>` address, inbox, and supervised thread. The
+frame is replaced with that address before ownership transfers through its queue.
+Registered kinds share the permanent workers' fatal boundary. An instance may
+continue through other machines and wait for a return at its own address; it is
+not implicitly retired after a handler. The Git handler returns a fresh status
+snapshot or expected error as data and explicitly requests retirement after its
+final handoff. Tk's command poll joins exited dynamic workers and removes their
+registry entries. Registry changes and creation/shutdown publication use an RLock.
+
+Each Git instance keeps its working root in its own runtime, never a shared
+module register. Subprocesses use argv and literal pathspecs, no shell or pager,
+and disable external diff/textconv. Ordinary commit hooks still run. Commands
+cannot ask for terminal input, and have a 120-second timeout that terminates the
+process tree. A timeout reports that the operation may already have completed.
+No Git command or repository-file access is performed by Disk or Tk.
+
+Porcelain NUL-delimited status preserves filenames and rename sources. A file
+may be listed on both sides of the index. Actions check the displayed revision,
+then recheck selected records' index/file stamps in the worker. Commit rechecks
+the complete index/HEAD stamp. These checks catch stale UI requests; Git's own
+index locks still govern competing external Git processes. Destructive actions
+reject directories, submodules, `.git` paths, and escaped parents; symlink deletion
+unlinks the link. A staged rename's restore includes both names. Delete preserves
+the index; Discard restores both index and worktree, including unstaged edits.
+
+Status metrics also stay in the Git worker: batched `cat-file` blob sizes describe
+staged versions, while lstat sizes describe working files. NUL-delimited numstat
+provides side-specific added/removed line counts, including rename pairs and
+binary markers. Untracked text is streamed to count additions without retaining
+its contents; symbolic links are inspected without following their targets.
+Tk only formats these plain byte counts and diff records for the two extra columns.
+
+Passive five-second polling reads local status. Explicit Refresh fetches the
+configured upstream remote, then reads status even if fetch fails. Ahead/behind
+counts use local upstream tracking refs. Push is an ordinary non-forced `git push`,
+available only when ahead with no behind count; branches without an upstream
+need configuration outside the panel. Behind/diverged branches require an
+external pull/reconciliation. File viewers cap text at 2 MiB and identify binaries.
+
 ## Shutdown and failure
 
 Normal close flushes pending widget drafts and additional JSON, then sends a
@@ -241,7 +294,9 @@ semantic shutdown request. Core rejects subsequent user edits, waits for all
 outstanding continuations, and persists its latest dirty generations. Only
 then does it retire, stop Mem, and tell Tk it may destroy the root.
 
-Main joins Core, Image, and Mem, queues Disk's sentinel after its producers stop,
+Core waits for the active Git operation, including result acceptance, before
+closing dynamic creation. Main joins Core and remaining dynamic workers, reaps
+their addresses, then joins Image and Mem, queues Disk's sentinel after its producers stop,
 then joins Disk. Only the main thread joins/reaps workers. The same orchestration
 is used by GUI execution and worker tests.
 
@@ -249,9 +304,19 @@ Unexpected worker exceptions or unexplained returns latch fatal failure, print
 a traceback, and wake all workers. Tk closes even when Core itself has died.
 Main joins workers and exits with status 1. Fatal exit does not attempt an
 emergency save. Like Today, shutdown is cooperative: no watchdog or forced
-termination handles a worker stuck inside a handler.
+termination handles an arbitrary worker stuck inside a handler. Git subprocesses
+have their own bounded timeout as described above.
 
 ## Verification
+
+`test_dynamic_machines.py` exercises unique creation addresses, continuations
+through another machine, explicit retirement, Main-only reaping, shutdown gates,
+and fatal dynamic failures. `test_git_panel.py` uses disposable repositories and a
+local bare remote for partial staging, both diff sides, rename/add/delete/discard,
+literal filenames, stale index/files, failed commits, first-commit behavior,
+ahead/behind/divergence, push, and close during an operation. `gui_git_panel.py`
+exercises actual Tk hosting, filename checkboxes, menus/viewers, commit draft
+preservation/clearing, and push-button states in a fresh interpreter.
 
 `tests/test_machines.py` exercises actual workers and queues: snapshot isolation,
 ownership transfer, delayed disk writes, newer edits during a save, close-time

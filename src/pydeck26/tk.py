@@ -12,7 +12,7 @@ import webbrowser
 
 import lionscliapp as app
 
-from . import description_editor, framing, full_dictionary_editor, ideas, image_ui, machine, resource_editor
+from . import description_editor, framing, full_dictionary_editor, git_ui, ideas, image_ui, machine, resource_editor
 
 g = {"project-root": None, "commands": None, "seq": 0, "view": None,
      "projecting": False, "closing": False, "conversation-id": None,
@@ -40,6 +40,7 @@ def send(event):
 
 def handle_when_polling_core_commands():
     root = widgets["window"].master
+    machine.reap_exited_machines()
     if machine.fatal.is_set():
         root.destroy()
         return
@@ -68,6 +69,8 @@ def handle_when_polling_core_commands():
                 send({"type": "STATUS", "text": "Structure JSON copied to clipboard."})
             elif command["type"] == "SET_IMAGE_PREVIEW":
                 image_ui.apply_preview(command)
+            elif command["type"] == "GIT_STATE":
+                git_ui.project_git_state(command)
     except Empty:
         pass
     root.after(20, handle_when_polling_core_commands)
@@ -402,6 +405,7 @@ def flush_pending_text_edits():
 
 
 def clear_panel_widgets():
+    git_ui.clear_panels()
     image_ui.clear_panels()
     for key in list(widgets):
         if key.startswith(("dictionary-", "conversation-", "resources-", "ideas-", "whiteboard-", "snapshot-")) or key in {"cockpit-surface", "initialization-panel"}:
@@ -413,6 +417,8 @@ def clear_panel_widgets():
 
 def build_hosted_panel(details):
     panel = details["panel"]
+    if panel["type"] == "GIT":
+        return git_ui.build_panel(details)
     if panel["type"] == "IMAGE":
         return image_ui.build_panel(details)
     widgets["cockpit-surface"] = details["parent"]
@@ -511,6 +517,7 @@ def realize_main_cockpit_window(root: tk.Tk) -> None:
     window.rowconfigure(1, weight=1)
     widgets["window"] = window
     image_ui.initialize_context({"send": send, "window": window, "is-closing": lambda: g["closing"]})
+    git_ui.initialize_context({"send": send, "window": window, "is-closing": lambda: g["closing"]})
     window.bind_all("<Control-s>", handle_when_user_uses_project_save_shortcut)
     build_masthead(window)
     build_cockpit_surface(window)

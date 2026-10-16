@@ -29,9 +29,11 @@
       ]
     },
     "whiteboard": {
-      "column-count": 1,
-      "height": 285,
-      "sash-proportions": []
+      "column-count": 2,
+      "height": 575,
+      "sash-proportions": [
+        0.3916365098512264
+      ]
     }
   },
   "positions": {
@@ -49,6 +51,9 @@
     },
     "whiteboard/column-1": {
       "panel-id": "project-whiteboard"
+    },
+    "whiteboard/column-2": {
+      "panel-id": "project-git"
     }
   },
   "panels": {
@@ -80,6 +85,12 @@
       "id": "project-whiteboard",
       "type": "WHITEBOARD",
       "label": "Whiteboard",
+      "source": "project"
+    },
+    "project-git": {
+      "id": "project-git",
+      "type": "GIT",
+      "label": "Git",
       "source": "project"
     }
   }

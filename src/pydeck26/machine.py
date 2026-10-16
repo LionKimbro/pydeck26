@@ -1,32 +1,71 @@
-"""Permanent machine runtimes, stack ownership, and supervised worker lifetimes."""
+"""Machine addresses, stack ownership, and supervised permanent/dynamic workers."""
 
 from queue import Queue
-from threading import Event, Thread, current_thread, local, main_thread
+from threading import Event, RLock, Thread, current_thread, local, main_thread
+from uuid import uuid4
 import traceback
 
-machines = {}  # Installed before startup; main marks joined workers as reaped.
+machines = {}  # Registry membership and lifecycle publication use machines_lock.
+machine_kinds = {}  # Registered before workers start; kind -> handler table.
+machines_lock = RLock()
 thread_state = local()
 fatal = Event()
 shutdown_started = Event()
 
 
 def initialize_machine_system():
-    if any(r["thread"] and r["thread"].is_alive() for r in machines.values()):
-        raise RuntimeError("cannot reset live machines")
-    machines.clear()
-    fatal.clear()
-    shutdown_started.clear()
+    with machines_lock:
+        if any(r["thread"] and r["thread"].is_alive() for r in machines.values()):
+            raise RuntimeError("cannot reset live machines")
+        machines.clear()
+        machine_kinds.clear()
+        fatal.clear()
+        shutdown_started.clear()
 
 
 def install_machine(details):
-    machines[details["name"]] = {
-        **details, "inbox": Queue(), "current-stack": None,
-        "thread": None, "running": False, "lifecycle": "starting", "continuation-frames": None,
-    }
+    with machines_lock:
+        machines[details["name"]] = {
+            "dynamic": False, **details, "inbox": Queue(), "current-stack": None,
+            "thread": None, "running": False, "lifecycle": "starting", "continuation-frames": None,
+        }
+
+
+def install_machine_kind(kind, handlers):
+    with machines_lock:
+        machine_kinds[kind] = dict(handlers)
+
+
+def get_machine_runtimes():
+    with machines_lock:
+        return list(machines.values())
+
+
+def begin_shutdown():
+    """Close creation after Core has drained its accepted operations."""
+    with machines_lock:
+        shutdown_started.set()
+        for runtime in machines.values():
+            if runtime["dynamic"]:
+                runtime["inbox"].put(None)
+
+
+def reap_exited_machines():
+    """Only Main joins and removes exited dynamic addresses; never join live work."""
+    if current_thread() is not main_thread():
+        raise RuntimeError("only the main thread may reap workers")
+    for runtime in get_machine_runtimes():
+        if runtime["dynamic"] and runtime["lifecycle"] == "exited":
+            runtime["thread"].join()
+            with machines_lock:
+                runtime["lifecycle"] = "reaped"
+                if machines.get(runtime["name"]) is runtime:
+                    del machines[runtime["name"]]
 
 
 def claim_machine(name):
-    thread_state.runtime = machines[name]
+    with machines_lock:
+        thread_state.runtime = machines[name]
 
 
 def get_current_runtime():
@@ -34,20 +73,22 @@ def get_current_runtime():
 
 
 def start_worker(name, loop):
-    runtime = machines[name]
-    if runtime["thread"] is not None:
-        raise RuntimeError(f"worker already started: {name}")
-    runtime["thread"] = Thread(target=run_worker, args=(name, loop), name=f"PyDeck {name}")
-    runtime["thread"].start()
+    with machines_lock:
+        runtime = machines[name]
+        if runtime["thread"] is not None:
+            raise RuntimeError(f"worker already started: {name}")
+        runtime["thread"] = Thread(target=run_worker, args=(name, loop), name=f"PyDeck {name}")
+        runtime["thread"].start()
 
 
 def when_thread_dies_unexpectedly():
-    if fatal.is_set():
-        return
-    fatal.set()
-    shutdown_started.set()
-    for runtime in machines.values():
-        runtime["inbox"].put(None)
+    with machines_lock:
+        if fatal.is_set():
+            return
+        fatal.set()
+        shutdown_started.set()
+        for runtime in machines.values():
+            runtime["inbox"].put(None)
 
 
 def run_worker(name, loop):
@@ -56,8 +97,9 @@ def run_worker(name, loop):
     try:
         if fatal.is_set():
             return
-        runtime["lifecycle"] = "running"
-        runtime["running"] = True
+        with machines_lock:
+            runtime["lifecycle"] = "running"
+            runtime["running"] = True
         loop()
         if runtime["running"] and not fatal.is_set():
             raise RuntimeError(f"{name} returned without retirement")
@@ -68,13 +110,15 @@ def run_worker(name, loop):
         runtime["running"] = False
         runtime["current-stack"] = None
         runtime["continuation-frames"] = None
-        runtime["lifecycle"] = "exited"
+        with machines_lock:
+            runtime["lifecycle"] = "exited"
 
 
 def request_machine_retirement():
-    runtime = get_current_runtime()
-    runtime["lifecycle"] = "stopping"
-    runtime["running"] = False
+    with machines_lock:
+        runtime = get_current_runtime()
+        runtime["lifecycle"] = "stopping"
+        runtime["running"] = False
 
 
 def handle_received_mobile_stack(work):
@@ -107,14 +151,28 @@ def continue_with_frames(frames):
 def route_current_stack():
     runtime = get_current_runtime()
     work = runtime["current-stack"]
-    destination = machines[work["frames"][-1]["machine"]]
-    if fatal.is_set():
-        runtime["current-stack"] = None
-        return
-    if destination["lifecycle"] in {"stopping", "exited", "reaped"}:
-        raise RuntimeError("cannot route to a retired machine")
-    runtime["current-stack"] = None  # Transfer ownership before publication.
-    destination["inbox"].put(work)
+    with machines_lock:
+        if fatal.is_set():
+            runtime["current-stack"] = None
+            return
+        frame = work["frames"][-1]
+        address = frame["machine"]
+        if isinstance(address, dict):
+            if shutdown_started.is_set():
+                raise RuntimeError("cannot create a machine during shutdown")
+            kind = address["new"]
+            address = f"{kind}-{uuid4().hex}"
+            install_machine({"name": address, "handlers": machine_kinds[kind], "dynamic": True})
+            frame["machine"] = address
+            start_worker(address, run_machine)
+        destination = machines.get(address)
+        if destination is None or destination["lifecycle"] in {"stopping", "exited", "reaped"}:
+            if shutdown_started.is_set():
+                runtime["current-stack"] = None
+                return
+            raise RuntimeError("cannot route to a retired machine")
+        runtime["current-stack"] = None  # Transfer ownership before publication.
+        destination["inbox"].put(work)
 
 
 def run_machine():

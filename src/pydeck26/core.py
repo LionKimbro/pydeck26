@@ -7,7 +7,7 @@ from pathlib import Path
 import re
 from uuid import uuid4
 
-from . import image_core, machine, mobile_stacks as ms, workspace
+from . import git_core, image_core, machine, mobile_stacks as ms, workspace
 
 g = {
     "revision": 0, "ready": False, "initialized": False, "seq": 0,
@@ -27,6 +27,7 @@ effects = []
 
 
 def initialize_core_state():
+    git_core.initialize_git_state()
     image_core.initialize_image_state()
     g.update({"revision": 0, "ready": False, "initialized": False, "seq": 0,
               "snapshot": None, "selected-conversation-id": None,
@@ -93,7 +94,7 @@ def dispatch_pending_commit_when_idle():
 
 def finish_close_when_saved():
     if (not g["closing"] or g["commit"] is not None or requested
-            or g["load-pending"] or g["outstanding"] or g["stop-requested"]):
+            or g["load-pending"] or g["outstanding"] or g["stop-requested"] or git_core.g["active"]):
         return
     if dirty and g["initialized"]:
         request_commit(dirty)
@@ -161,16 +162,19 @@ def reduce_event(event):
         dispatch_pending_commit_when_idle()
     elif kind == "SHUTDOWN":
         g["closing"] = True
-        machine.shutdown_started.set()
         if g["initialized"]:
             request_commit(dirty)
     elif kind in {"IMAGE_IMPORTED", "IMAGE_PREVIEW_RETURNED"}:
         image_core.reduce_image_event(event)
+    elif kind == "GIT_RETURNED":
+        git_core.reduce_git_event(event)
     elif not g["ready"] or g["closing"]:
         finish_close_when_saved()
         return
     elif kind == "SAVE":
         request_commit(dirty | {"whiteboard", "workspace"})
+    elif kind == "GIT_REQUEST":
+        git_core.reduce_git_event(event)
     elif kind in image_core.EVENTS:
         image_core.reduce_image_event(event)
     elif kind in workspace.LAYOUT_EVENTS:
@@ -345,6 +349,7 @@ def dispatch_effect(effect):
             ms.push_frame(frame)
         machine.route_current_stack()
     elif effect["type"] == "STOP":
+        machine.begin_shutdown()
         machine.machines["MEM"]["inbox"].put(None)
         machine.machines["IMAGE"]["inbox"].put(None)
         machine.request_machine_retirement()
@@ -361,7 +366,7 @@ def handle_when_core_receives_stack_result():
 HANDLERS = {name: handle_when_core_receives_stack_result for name in (
     "PROJECT_RETURNED", "COMMIT_RETURNED", "HISTORY_RETURNED",
     "SNAPSHOT_RETURNED", "RESOURCE_RETURNED", "STRUCTURE_RETURNED",
-    "IMAGE_IMPORTED", "IMAGE_PREVIEW_RETURNED",
+    "IMAGE_IMPORTED", "IMAGE_PREVIEW_RETURNED", "GIT_RETURNED",
 )}
 
 
