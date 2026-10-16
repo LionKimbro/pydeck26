@@ -271,20 +271,20 @@ def read_text_file(name):
 
 def perform_request(request):
     operation = request["operation"]
-    if operation not in {"status", "refresh", "stage", "unstage", "delete", "discard", "commit", "push", "file", "diff", "open"}:
+    if operation not in {"status", "refresh", "stage", "unstage", "revert", "discard", "commit", "push", "file", "diff", "open"}:
         raise ValueError("Unknown Git operation.")
     snapshot = read_status()
     result = {"message": "Repository refreshed.", "viewer": None, "open-path": None}
     if operation == "refresh" and snapshot["upstream"]:
         remote = git_output(["config", "--get", f"branch.{snapshot['branch']}.remote"]).decode("utf-8", "replace").strip()
         run_git(["fetch", "--", remote])
-    elif operation in {"stage", "unstage", "delete", "discard"}:
+    elif operation in {"stage", "unstage", "revert", "discard"}:
         expected_side = "staged" if operation in {"unstage", "discard"} else "unstaged"
         if request["side"] != expected_side:
             raise ValueError("This operation belongs to the other column.")
         records = get_selected_records(request, snapshot)
         paths = get_record_paths(records)
-        if operation in {"delete", "discard"}:
+        if operation in {"revert", "discard"}:
             if any(record["submodule"] for record in records):
                 raise ValueError("Submodules cannot be deleted or discarded from this panel.")
             require_plain_files(paths)
@@ -295,9 +295,23 @@ def perform_request(request):
                 run_git(["restore", "--source=HEAD", "--staged", "--", *paths])
             else:
                 run_git(["rm", "--cached", "-f", "--", *paths])
-        elif operation == "delete":
-            for record in records:
-                checked_path(record["path"]).unlink(missing_ok=True)
+        elif operation == "revert":
+            if any(record["conflict"] for record in records):
+                raise ValueError("Resolve merge conflicts before reverting files.")
+            # Untracked paths may still exist in HEAD after a staged deletion.
+            committed = set(git_output(["ls-tree", "-r", "--name-only", "-z", "HEAD", "--", *paths])
+                            .decode("utf-8", "surrogateescape").split("\0")) if snapshot["has-head"] else set()
+            untracked = {record["path"] for record in records if record["code"] == "?"}
+            restore = [name for name in paths if name not in untracked or name in committed]
+            if restore:
+                if snapshot["has-head"]:
+                    run_git(["restore", "--source=HEAD", "--staged", "--worktree", "--", *restore])
+                else:
+                    run_git(["rm", "--cached", "-f", "--", *restore])
+                    for name in restore:
+                        checked_path(name).unlink(missing_ok=True)
+            for name in untracked - committed:
+                checked_path(name).unlink(missing_ok=True)
         else:
             if any(record["conflict"] for record in records):
                 raise ValueError("Resolve merge conflicts before discarding staged files.")
@@ -308,7 +322,7 @@ def perform_request(request):
                 for name in paths:
                     checked_path(name).unlink(missing_ok=True)
         result["message"] = {"stage": "Selected files staged.", "unstage": "Selected files unstaged.",
-                             "delete": "Selected files deleted from disk.", "discard": "Selected staged and working changes discarded."}[operation]
+                             "revert": "Selected files reverted to the last commit; files with no committed version deleted.", "discard": "Selected staged and working changes discarded."}[operation]
     elif operation == "commit":
         message = request.get("message", "").strip()
         if not message:

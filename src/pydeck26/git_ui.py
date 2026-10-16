@@ -107,7 +107,7 @@ def build_panel(details):
         tree.heading("#0", command=lambda value=side: toggle_all_from_heading(panel, value))
         actions = ttk.Frame(frame)
         actions.grid(row=4, column=0, sticky="ew", pady=(4, 0))
-        choices = (("Unstage", "unstage"), ("Discard", "discard"), ("Commit Staged", "commit")) if side == "staged" else (("Stage", "stage"), ("Delete", "delete"))
+        choices = (("Unstage", "unstage"), ("Discard", "discard"), ("Commit Staged", "commit")) if side == "staged" else (("Stage", "stage"), ("Revert/Delete", "revert"))
         for label, operation in choices:
             button = ttk.Button(actions, text=label,
                                 command=lambda op=operation, value=side: handle_when_action_clicked(panel, {"operation": op, "side": value}))
@@ -134,7 +134,7 @@ def handle_when_panel_resizes(panel):
     panel["commit-caption"].configure(wraplength=width)
     for listing in panel["lists"].values():
         listing["title"].configure(wraplength=max(60, width // 2 - 12))
-    for side, operations in (("staged", ("unstage", "discard", "commit")), ("unstaged", ("stage", "delete"))):
+    for side, operations in (("staged", ("unstage", "discard", "commit")), ("unstaged", ("stage", "revert"))):
         for index, operation in enumerate(operations):
             button = panel["buttons"][operation]
             if width < 640:
@@ -209,7 +209,7 @@ def update_action_buttons(panel):
     state = g["state"]
     for side, listing in panel["lists"].items():
         listing["all-var"].set(bool(listing["records"]) and len(listing["checked"]) == len(listing["records"]))
-        for operation in (("unstage", "discard") if side == "staged" else ("stage", "delete")):
+        for operation in (("unstage", "discard") if side == "staged" else ("stage", "revert")):
             panel["buttons"][operation].state(["!disabled" if listing["checked"] and not state["busy"] else "disabled"])
     can_commit = state["snapshot"] and state["snapshot"]["staged"] and g["message-var"].get().strip() and not state["busy"]
     panel["buttons"]["commit"].state(["!disabled" if can_commit else "disabled"])
@@ -292,10 +292,10 @@ def handle_when_action_clicked(panel, action):
     revision = g["state"]["revision"]
     listing = panel["lists"][side]
     paths = [record["path"] for record in listing["records"].values() if record["path"] in listing["checked"]]
-    if operation in {"delete", "discard"}:
-        explanation = ("Permanently delete these files from disk? Staged copies remain in the index."
-                       if operation == "delete" else "Discard ALL staged and unstaged changes to these files? They will match the last commit. Newly added files will be deleted.")
-        if not messagebox.askyesno(operation.title(), explanation + "\n\n" + "\n".join(paths), parent=g["window"]):
+    if operation in {"revert", "discard"}:
+        explanation = ("Revert these files to the last commit, discarding ALL staged and unstaged changes? Files with no committed version will be deleted."
+                       if operation == "revert" else "Discard ALL staged and unstaged changes to these files? They will match the last commit. Newly added files will be deleted.")
+        if not messagebox.askyesno("Revert/Delete" if operation == "revert" else operation.title(), explanation + "\n\n" + "\n".join(paths), parent=g["window"]):
             return
     send_operation(operation, {"side": side, "paths": paths, "message": g["message-var"].get(), "revision": revision})
 

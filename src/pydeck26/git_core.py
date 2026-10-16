@@ -59,7 +59,7 @@ def reduce_git_event(event):
             return
         request.update({"side": event.get("side"), "message": event.get("message", ""),
                         "index-stamp": snapshot["index-stamp"]})
-        if operation in {"stage", "unstage", "delete", "discard", "file", "diff", "open"}:
+        if operation in {"stage", "unstage", "revert", "discard", "file", "diff", "open"}:
             side = event.get("side")
             paths = event.get("paths", [])
             if side not in {"staged", "unstaged"}:

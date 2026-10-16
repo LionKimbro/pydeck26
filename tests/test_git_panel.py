@@ -102,23 +102,50 @@ def test_partial_staging_diff_unstage_commit_and_thread_ownership(repository, mo
     assert set(machine.machines) == {"CORE", "MEM", "DISK", "IMAGE"}
 
 
-def test_stale_destructive_selection_is_rejected_and_delete_keeps_index(repository):
+def test_stale_revert_is_rejected_and_revert_restores_last_commit(repository):
     root, commands = repository
     (root / "tracked.txt").write_text("staged\n")
     git(root, ["add", "tracked.txt"])
     (root / "tracked.txt").write_text("newer\n")
     request(commands, "status")
     (root / "tracked.txt").write_text("newer edits after confirmation\n")
-    result = request(commands, "delete", side="unstaged", paths=["tracked.txt"])
+    result = request(commands, "revert", side="unstaged", paths=["tracked.txt"])
     assert not result["ok"] and "changed" in result["message"]
     assert (root / "tracked.txt").exists()
-    result = request(commands, "delete", side="unstaged", paths=["tracked.txt"])
-    assert result["ok"] and not (root / "tracked.txt").exists()
-    assert git(root, ["show", ":tracked.txt"]).strip() == "staged"
-    result = request(commands, "discard", side="staged", paths=["tracked.txt"])
+    result = request(commands, "revert", side="unstaged", paths=["tracked.txt"])
     assert result["ok"], result
     assert (root / "tracked.txt").read_text() == "first\nsecond\n"
+    assert git(root, ["show", ":tracked.txt"]) == git(root, ["show", "HEAD:tracked.txt"])
     assert not result["snapshot"]["staged"] and not result["snapshot"]["unstaged"]
+
+
+@pytest.mark.parametrize("change", ["modified", "deleted", "staged-deletion", "staged-addition"])
+def test_revert_mixed_selection_restores_committed_files_and_deletes_new_files(repository, change):
+    root, commands = repository
+    if change == "deleted":
+        (root / "tracked.txt").unlink()
+    elif change == "staged-deletion":
+        git(root, ["rm", "tracked.txt"])
+        (root / "tracked.txt").write_text("recreated\n")
+    elif change == "staged-addition":
+        (root / "tracked.txt").write_text("modified\n")
+        (root / "added.txt").write_text("staged\n")
+        git(root, ["add", "added.txt"])
+        (root / "added.txt").write_text("unstaged\n")
+    else:
+        (root / "tracked.txt").write_text("modified\n")
+    (root / "[new].txt").write_text("new file\n")
+    (root / "keep.txt").write_text("keep me\n")
+    paths = ["tracked.txt", "[new].txt"] + (["added.txt"] if change == "staged-addition" else [])
+    request(commands, "status")
+    result = request(commands, "revert", side="unstaged", paths=paths)
+    assert result["ok"], result
+    assert (root / "tracked.txt").read_text() == "first\nsecond\n"
+    assert not (root / "[new].txt").exists()
+    assert not (root / "added.txt").exists()
+    assert (root / "keep.txt").read_text() == "keep me\n"
+    assert not result["snapshot"]["staged"]
+    assert [item["path"] for item in result["snapshot"]["unstaged"]] == ["keep.txt"]
 
 
 def test_rename_added_files_and_literal_pathspecs(repository):
