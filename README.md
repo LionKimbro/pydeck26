@@ -20,6 +20,8 @@ The small **↑ Push** control activates when the branch is ahead of its configu
 
 Both Git lists include **File size** (bytes/KiB/MiB) and **Diff (+/− lines)**. Staged sizes describe the indexed version; unstaged sizes describe the file on disk. Diff counts compare HEAD to the index on the left and the index to the working file on the right. Untracked text is counted as additions, binary diffs show **Binary**, and deleted versions have size zero. Unavailable metrics, including submodules and conflicted diffs, show **—**.
 
+Use **Dismiss** beside Git output to hide both the message and its button and reclaim the space for file lists. Background status polling keeps dismissed output hidden; a new operation's output appears normally.
+
 Choose **[+ Captain's Log]** for a chronological project journal. The permanent **<new entry>** row stays first and updates its local clock each minute. Select it, write a note on the right, optionally add a hook, space-separated lowercase tags (`a-z`, `0-9`, and `-`), and mark **Major** for a bold list entry. **Save** records the current date/time to the second; accidental same-second creations are ignored. Saved entries appear newest first. An empty hook uses a preview of the note.
 
 Editing and saving an entry appends a revision with a new GUID and a `supersedes` link; the original date/time is retained. Only the latest revision appears in the panel, with a red **Last edited …** note above Hook. Hold Ctrl to change **Save** to **Save Over**: Ctrl-clicking replaces the current revision in place, preserving its GUID and shadowing link, and removes its modified-on metadata. Older LSF sections remain intact. There is no entry deletion control.

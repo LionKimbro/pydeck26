@@ -14,3 +14,27 @@ indent: 2
   This is just a test, basically!
   
   Very exciting!
+== 2026-10-16 00:40:49 ==
+guid: f6e98ae8-b788-47ff-8aa0-feb0583e40eb
+date: 2026-10-16
+time: 00:40:49
+hook: reflections on today and coming activity
+tags: dayreview plan
+major: false
+indent: 2
+
+  
+  I've added several new panel types today:
+  
+  * Git Repository
+  * Captain's Log
+  
+  ...and a few days ago, I had made it adopt the architecture from Today, Arcs.
+  
+  I have thoughts about creating a unified under-architecture.
+  "How under-architecture do you want to go, Lion?"
+  That's the conversation we were having in https://chatgpt.com/c/6ad11f13-eef4-83e8-9b3c-e249b4ff22b0 -- the conversation about becoming "the world's most powerful software developer." -- "The Sovereign Software Creator."
+  
+  Maybe there are two layers of under-architecture:
+  1. DEEP under-architecture -- like for the shipyard
+  2. Temple of Focus under-architecture -- what's common between Today/Arcs/PyDeck/Focus/...

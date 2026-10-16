@@ -6,7 +6,7 @@ from tkinter import messagebox, ttk
 from .theme import COLORS
 
 g = {"send": None, "window": None, "is-closing": None, "message-var": None,
-     "state": None, "poll-id": None}
+     "state": None, "poll-id": None, "dismissed-message": None}
 panels = {}  # Active hosts only; rebuilding a layout retains the commit draft.
 
 
@@ -19,7 +19,7 @@ def initialize_context(context):
     panels.clear()
     g.update(context)
     g.update({"state": {"snapshot": None, "busy": False, "revision": 0, "message": "Opening repository…"},
-              "message-var": tk.StringVar(master=g["window"]), "poll-id": None})
+              "message-var": tk.StringVar(master=g["window"]), "poll-id": None, "dismissed-message": None})
     g["message-var"].trace_add("write", handle_when_commit_message_changes)
     g["poll-id"] = g["window"].after(5000, handle_when_repository_poll_is_due)
 
@@ -118,9 +118,16 @@ def build_panel(details):
     entry = ttk.Entry(parent, textvariable=g["message-var"])
     entry.grid(row=4, column=0, sticky="ew", padx=8, pady=(2, 4))
     panel["message"] = entry
-    status = ttk.Label(parent, anchor="w", justify="left")
-    status.grid(row=5, column=0, sticky="ew", padx=8, pady=(0, 5))
+    output = ttk.Frame(parent)
+    output.grid(row=5, column=0, sticky="ew", padx=8, pady=(0, 5))
+    output.columnconfigure(0, weight=1)
+    status = ttk.Label(output, anchor="w", justify="left")
+    status.grid(row=0, column=0, sticky="ew")
+    dismiss = ttk.Button(output, text="Dismiss", command=handle_when_output_dismissed)
+    dismiss.grid(row=0, column=1, sticky="ne", padx=(8, 0))
     panel["status"] = status
+    panel["output"] = output
+    panel["dismiss"] = dismiss
     parent.bind("<Configure>", lambda event: handle_when_panel_resizes(panel))
     project_panel(panel)
     parent.after_idle(lambda: send_operation("status") if panel["id"] in panels else None)
@@ -129,7 +136,7 @@ def build_panel(details):
 
 def handle_when_panel_resizes(panel):
     width = max(80, panel["parent"].winfo_width() - 20)
-    panel["status"].configure(wraplength=width)
+    panel["status"].configure(wraplength=max(60, width - panel["dismiss"].winfo_reqwidth() - 8))
     panel["repository"].configure(wraplength=width)
     panel["commit-caption"].configure(wraplength=width)
     for listing in panel["lists"].values():
@@ -144,6 +151,9 @@ def handle_when_panel_resizes(panel):
 
 
 def project_git_state(command):
+    if (command["message"] != g["state"]["message"]
+            or command.get("operation") not in (None, "status")):
+        g["dismissed-message"] = None
     g["state"] = command
     if command.get("ok") and command.get("operation") == "commit":
         if g["message-var"].get().strip() == (command.get("committed-message") or "").strip():
@@ -160,7 +170,7 @@ def project_panel(panel):
     state = g["state"]
     snapshot = state["snapshot"]
     busy = state["busy"]
-    panel["status"].configure(text=state["message"])
+    project_output(panel)
     panel["refresh"].state(["disabled" if busy else "!disabled"])
     if snapshot is None:
         panel["repository"].configure(text="Repository unavailable" if not busy else "Inspecting repository…")
@@ -203,6 +213,22 @@ def project_panel(panel):
             listing["signature"] = signature
         listing["select-all"].state(["disabled" if busy or not records else "!disabled"])
     update_action_buttons(panel)
+
+
+def project_output(panel):
+    message = g["state"]["message"]
+    if message and message != g["dismissed-message"]:
+        panel["status"].configure(text=message)
+        panel["output"].grid()
+    else:
+        panel["status"].configure(text="")
+        panel["output"].grid_remove()
+
+
+def handle_when_output_dismissed():
+    g["dismissed-message"] = g["state"]["message"]
+    for panel in panels.values():
+        project_output(panel)
 
 
 def update_action_buttons(panel):

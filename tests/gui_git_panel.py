@@ -107,6 +107,14 @@ def run():
                             git_ui.project_git_state(sample)
                             assert ("disabled" not in panel["push"].state()) == enabled
                         git_ui.project_git_state(actual)
+                        assert panel["output"].winfo_manager() == "grid"
+                        panel["dismiss"].invoke()
+                        assert panel["output"].winfo_manager() == ""
+                        assert panel["status"].cget("text") == ""
+                        git_ui.project_git_state({**actual, "operation": "status"})
+                        assert panel["output"].winfo_manager() == ""  # Polling must not resurrect dismissed output.
+                        git_ui.project_git_state({**actual, "operation": "refresh", "message": "Repository refreshed."})
+                        assert panel["output"].winfo_manager() == "grid"
                         def finish():
                             if len(sys.argv) > 1:
                                 capture_window(tk.widgets["window"], Path(sys.argv[1]))

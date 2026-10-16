@@ -10,13 +10,14 @@
         "working",
         "whiteboard"
       ],
-      "scroll-position": 0.1094224924012158
+      "scroll-position": 0.07804878048780488
     },
     {
       "id": "31af4ffe5413489d9abe13569e0b73ab",
       "label": "History",
       "row-ids": [
-        "cf127eeb02a143a4aa7ce2142451773a"
+        "cf127eeb02a143a4aa7ce2142451773a",
+        "79d0a7df5314479684139e6a5d439deb"
       ],
       "scroll-position": 0.0
     }
@@ -26,7 +27,7 @@
       "column-count": 2,
       "height": 285,
       "sash-proportions": [
-        0.49618013671089667
+        0.5371934057096904
       ]
     },
     "working": {
@@ -37,23 +38,26 @@
       ]
     },
     "whiteboard": {
-      "column-count": 2,
-      "height": 575,
-      "sash-proportions": [
-        0.36228387615601126
-      ]
+      "column-count": 1,
+      "height": 489,
+      "sash-proportions": []
     },
     "cf127eeb02a143a4aa7ce2142451773a": {
       "column-count": 2,
       "height": 538,
       "sash-proportions": [
-        0.3558504221954162
+        0.3466023321270607
       ]
+    },
+    "79d0a7df5314479684139e6a5d439deb": {
+      "column-count": 1,
+      "height": 260,
+      "sash-proportions": []
     }
   },
   "positions": {
     "overview/column-1": {
-      "panel-id": "project-structure"
+      "panel-id": "project-whiteboard"
     },
     "overview/column-2": {
       "panel-id": "f001ff93ec9a48789d7dd57e4a0946a6"
@@ -65,9 +69,6 @@
       "panel-id": "project-ideas"
     },
     "whiteboard/column-1": {
-      "panel-id": "project-whiteboard"
-    },
-    "whiteboard/column-2": {
       "panel-id": "project-git"
     },
     "cf127eeb02a143a4aa7ce2142451773a/column-1": {
@@ -75,6 +76,9 @@
     },
     "cf127eeb02a143a4aa7ce2142451773a/column-2": {
       "panel-id": "project-captains-log"
+    },
+    "79d0a7df5314479684139e6a5d439deb/column-1": {
+      "panel-id": "project-conversations"
     }
   },
   "panels": {

@@ -325,7 +325,16 @@ def handle_when_focus_leaves_window(event):
 
 
 def reset_control_if_unfocused():
-    if g["window"].winfo_exists() and g["window"].focus_displayof() is None:
+    window = g["window"]
+    try:
+        if not window.winfo_exists():
+            return
+        # Internal Tcl widgets (notably combobox popdowns) have no Python widget
+        # object. Query the path directly instead of Tkinter's _nametowidget lookup.
+        focused = window.tk.call("focus", "-displayof", window._w)
+    except tk.TclError:
+        return  # A queued idle check can outlive its window/interpreter.
+    if not focused:
         control_keys.clear()
         update_save_controls()
 
