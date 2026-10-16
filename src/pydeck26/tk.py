@@ -6,6 +6,8 @@ from pathlib import Path
 from queue import Empty
 import tkinter as tk
 from tkinter import filedialog, simpledialog, ttk
+
+from .theme import COLORS, apply_theme
 import webbrowser
 
 import lionscliapp as app
@@ -438,9 +440,9 @@ def build_hosted_panel(details):
 
 def build_panel_title_row(parent, title):
     """One title row shared by panel-specific actions and the hosting close control."""
-    header = tk.Frame(parent, background="#ffffff")
+    header = tk.Frame(parent, background=COLORS["panel"])
     header.grid(row=0, column=0, sticky="ew")
-    tk.Label(header, text=title, background="#ffffff", foreground="#173b62",
+    tk.Label(header, text=title, background=COLORS["panel"], foreground=COLORS["accent"],
              font=("TkDefaultFont", 12, "bold")).pack(side="left")
     return header
 
@@ -501,6 +503,7 @@ def copy_text_to_clipboard(text):
 
 def realize_main_cockpit_window(root: tk.Tk) -> None:
     """Build the one visible, resizable cockpit window."""
+    apply_theme(root)
     window = tk.Toplevel(root)
     window.geometry("1120x760")
     window.minsize(820, 560)
@@ -517,20 +520,20 @@ def realize_main_cockpit_window(root: tk.Tk) -> None:
 
 def build_masthead(window: tk.Toplevel) -> None:
     """Create the project-orientation masthead that remains visible on resize."""
-    header = tk.Frame(window, background="#182333", padx=18, pady=14)
+    header = tk.Frame(window, background=COLORS["top"], padx=18, pady=14)
     header.grid(row=0, column=0, sticky="ew")
-    title = tk.Label(header, background="#182333", foreground="#f4f7fb", font=("TkDefaultFont", 19, "bold"))
+    title = tk.Label(header, background=COLORS["top"], foreground=COLORS["accent"], font=("TkDefaultFont", 19, "bold"))
     title.pack(anchor="w")
     title.configure(cursor="hand2")
     title.bind("<Button-1>", handle_when_user_clicks_project_title)
-    hook = tk.Label(header, background="#182333", foreground="#b8c7da", font=("TkDefaultFont", 10), wraplength=1040, justify="left")
+    hook = tk.Label(header, background=COLORS["top"], foreground=COLORS["secondary"], font=("TkDefaultFont", 10), wraplength=1040, justify="left")
     hook.pack(anchor="w", pady=(3, 3))
-    path_line = tk.Frame(header, background="#182333")
+    path_line = tk.Frame(header, background=COLORS["top"])
     path_line.pack(anchor="w")
-    path = tk.Label(path_line, background="#182333", foreground="#8fc4f4", cursor="hand2", font=("TkDefaultFont", 9, "underline"))
+    path = tk.Label(path_line, background=COLORS["top"], foreground=COLORS["accent"], cursor="hand2", font=("TkDefaultFont", 9, "underline"))
     path.pack(side="left")
     path.bind("<Button-1>", handle_when_user_clicks_project_root_path)
-    guid = tk.Label(path_line, background="#182333", foreground="#526273", cursor="hand2", font=("TkDefaultFont", 9))
+    guid = tk.Label(path_line, background=COLORS["top"], foreground=COLORS["muted"], cursor="hand2", font=("TkDefaultFont", 9))
     guid.pack(side="left", padx=(8, 0))
     guid.bind("<Button-1>", handle_when_user_clicks_project_guid)
     widgets["title"] = title
@@ -559,13 +562,13 @@ def build_cockpit_surface(window: tk.Toplevel) -> None:
 def build_structure_card() -> tk.Frame:
     """Build the curated, explicitly ordered project-resource instrument."""
     surface = widgets["cockpit-surface"]
-    card = tk.Frame(surface, background="#ffffff", highlightbackground="#c7d2df", highlightthickness=1, padx=10, pady=10)
+    card = tk.Frame(surface, background=COLORS["panel"], highlightbackground=COLORS["border"], highlightthickness=1, padx=10, pady=10)
     card.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
     card.columnconfigure(0, weight=1)
     card.rowconfigure(2, weight=1)
     header = build_panel_title_row(card, "STRUCTURE")
     ttk.Button(header, text="Copy", command=handle_when_user_copies_structure_json).pack(side="right")
-    tk.Label(card, text="curated project resources — path copies, filename opens, hook explains", background="#ffffff", foreground="#667789", font=("TkDefaultFont", 9)).grid(row=1, column=0, sticky="w")
+    tk.Label(card, text="curated project resources — path copies, filename opens, hook explains", background=COLORS["panel"], foreground=COLORS["secondary"], font=("TkDefaultFont", 9)).grid(row=1, column=0, sticky="w")
     tree = ttk.Treeview(card, columns=("path", "filename", "hook"), show="headings", height=5)
     for key, label, width in [("path", "Path", 120), ("filename", "Filename", 145), ("hook", "Hook", 220)]:
         tree.heading(key, text=label)
@@ -588,7 +591,7 @@ def build_structure_card() -> tk.Frame:
 def build_dictionary_card() -> tk.Frame:
     """Build the compact editable identity surface for the current project dictionary."""
     surface = widgets["cockpit-surface"]
-    card = tk.Frame(surface, background="#ffffff", highlightbackground="#c7d2df", highlightthickness=1, padx=10, pady=10)
+    card = tk.Frame(surface, background=COLORS["panel"], highlightbackground=COLORS["border"], highlightthickness=1, padx=10, pady=10)
     card.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
     card.columnconfigure(1, weight=1)
     header = build_panel_title_row(card, "DICTIONARY")
@@ -617,10 +620,10 @@ def build_dictionary_entry(parent: tk.Frame, label: str, row: int) -> ttk.Entry:
 
 def build_ideas_card() -> tk.Frame:
     """Build the compact pinned-ideas view and its directory jump."""
-    surface=widgets["cockpit-surface"]; card=tk.Frame(surface,background="#ffffff",highlightbackground="#c7d2df",highlightthickness=1,padx=10,pady=10)
+    surface=widgets["cockpit-surface"]; card=tk.Frame(surface,background=COLORS["panel"],highlightbackground=COLORS["border"],highlightthickness=1,padx=10,pady=10)
     card.grid(row=0,column=0,sticky="nsew",padx=5,pady=5); card.columnconfigure(0,weight=1); card.rowconfigure(2,weight=1)
     header = build_panel_title_row(card, "IDEAS")
-    tk.Label(card,text="pinned possible work",background="#ffffff",foreground="#667789",font=("TkDefaultFont",9)).grid(row=1,column=0,sticky="w")
+    tk.Label(card,text="pinned possible work",background=COLORS["panel"],foreground=COLORS["secondary"],font=("TkDefaultFont",9)).grid(row=1,column=0,sticky="w")
     tree=ttk.Treeview(card,columns=("status","title"),show="headings",height=5); tree.heading("status",text="Status"); tree.heading("title",text="Title"); tree.column("status",width=95,stretch=False); tree.column("title",width=250,stretch=True)
     tree.grid(row=2,column=0,sticky="nsew",pady=(5,0)); tree.bind("<Double-Button-1>",lambda e: ideas.open_editor(tree.selection()[0] if tree.selection() else None))
     ttk.Button(card,text="Directory",command=ideas.open_directory).grid(row=3,column=0,sticky="w",pady=(6,0)); widgets["ideas-tree"]=tree
@@ -630,16 +633,16 @@ def build_ideas_card() -> tk.Frame:
 def build_conversations_card() -> tk.Frame:
     """Build a compact master-detail project conversation register."""
     surface = widgets["cockpit-surface"]
-    card = tk.Frame(surface, background="#ffffff", highlightbackground="#c7d2df", highlightthickness=1, padx=10, pady=10)
+    card = tk.Frame(surface, background=COLORS["panel"], highlightbackground=COLORS["border"], highlightthickness=1, padx=10, pady=10)
     card.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
     card.columnconfigure(0, weight=2)
     card.columnconfigure(1, weight=3)
     card.rowconfigure(2, weight=1)
     header = build_panel_title_row(card, "CONVERSATIONS")
     header.grid_configure(columnspan=2)
-    tk.Label(card, text="conversations with LLMs", background="#ffffff", foreground="#667789", font=("TkDefaultFont", 9)).grid(row=1, column=0, sticky="w", pady=(1, 6))
+    tk.Label(card, text="conversations with LLMs", background=COLORS["panel"], foreground=COLORS["secondary"], font=("TkDefaultFont", 9)).grid(row=1, column=0, sticky="w", pady=(1, 6))
 
-    list_panel = tk.Frame(card, background="#ffffff")
+    list_panel = tk.Frame(card, background=COLORS["panel"])
     list_panel.grid(row=2, column=0, sticky="nsew", padx=(0, 8))
     list_panel.columnconfigure(0, weight=1)
     list_panel.rowconfigure(0, weight=1)
@@ -658,7 +661,7 @@ def build_conversations_card() -> tk.Frame:
     tree.bind("<<TreeviewSelect>>", handle_when_user_selects_conversation)
     ttk.Button(list_panel, text="New Conversation", command=handle_when_user_creates_conversation).grid(row=1, column=0, sticky="w", pady=(6, 0))
 
-    editor = tk.Frame(card, background="#ffffff")
+    editor = tk.Frame(card, background=COLORS["panel"])
     editor.grid(row=1, column=1, rowspan=2, sticky="nsew")
     editor.columnconfigure(1, weight=1)
     editor.columnconfigure(2, weight=0)
@@ -669,7 +672,7 @@ def build_conversations_card() -> tk.Frame:
     hook_entry = build_conversation_entry(editor, "Hook", 3)
     title_entry.grid_configure(columnspan=2)
     hook_entry.grid_configure(columnspan=2)
-    description = tk.Label(editor, text="", background="#f2f5f8", foreground="#263746", cursor="hand2", justify="left", anchor="nw", wraplength=330, padx=6, pady=5)
+    description = tk.Label(editor, text="", background=COLORS["editor"], foreground=COLORS["text"], cursor="hand2", justify="left", anchor="nw", wraplength=330, padx=6, pady=5)
     description.grid(row=4, column=0, columnspan=3, sticky="ew", pady=(7, 0))
     description.bind("<Double-Button-1>", handle_when_user_double_clicks_conversation_description)
     ttk.Button(editor, text="Save", width=4, command=handle_when_user_saves_conversation_to_memory).grid(row=5, column=2, sticky="e", pady=(6, 0))
@@ -696,13 +699,13 @@ def build_conversation_entry(parent: tk.Frame, label: str, row: int) -> ttk.Entr
 def build_whiteboard_card() -> tk.Frame:
     """Build the directly editable present and its right-hand historical control."""
     surface = widgets["cockpit-surface"]
-    card = tk.Frame(surface, background="#ffffff", highlightbackground="#c7d2df", highlightthickness=1, padx=14, pady=12)
+    card = tk.Frame(surface, background=COLORS["panel"], highlightbackground=COLORS["border"], highlightthickness=1, padx=14, pady=12)
     card.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
     card.columnconfigure(0, weight=1)
     card.rowconfigure(2, weight=1)
     header = build_panel_title_row(card, "WHITEBOARD")
     header.grid_configure(columnspan=2)
-    tk.Label(card, text="loose intentional notes, current thinking, and recoverable earlier states", background="#ffffff", foreground="#667789", font=("TkDefaultFont", 9)).grid(row=1, column=0, sticky="w", pady=(1, 8))
+    tk.Label(card, text="loose intentional notes, current thinking, and recoverable earlier states", background=COLORS["panel"], foreground=COLORS["secondary"], font=("TkDefaultFont", 9)).grid(row=1, column=0, sticky="w", pady=(1, 8))
 
     ttk.Button(header, text="Snapshot", command=handle_when_user_saves_snapshot).pack(side="right")
 
@@ -711,10 +714,10 @@ def build_whiteboard_card() -> tk.Frame:
     editor.bind("<<Modified>>", handle_when_whiteboard_text_changes)
     widgets["whiteboard-editor"] = editor
 
-    history = tk.Frame(card, background="#f2f5f8", padx=6, pady=8, width=52)
+    history = tk.Frame(card, background=COLORS["editor"], padx=6, pady=8, width=52)
     history.grid(row=2, column=1, sticky="ns")
     history.grid_propagate(False)
-    scale = tk.Scale(history, from_=0, to=0, orient="vertical", resolution=1, showvalue=False, length=145, command=handle_when_snapshot_scale_changes, background="#f2f5f8", highlightthickness=0)
+    scale = tk.Scale(history, from_=0, to=0, orient="vertical", resolution=1, showvalue=False, length=145, command=handle_when_snapshot_scale_changes, background=COLORS["editor"], highlightthickness=0)
     scale.pack(anchor="center", fill="y", expand=True)
     widgets["snapshot-scale"] = scale
     return header

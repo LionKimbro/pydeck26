@@ -8,6 +8,7 @@ Today's `docs/architecture-review.md` and current `src/today` implementation.
 | Module | Owns | Execution |
 | --- | --- | --- |
 | `tk.py`, `framing.py`, and editor modules | Widgets, bindings, tab/row/slot framing, native dialogs, editor drafts, independent presentation records | Main thread |
+| `theme.py` | Shared phosphor-green palette and Tk/ttk appearance defaults, installed before window construction | Main thread |
 | `core.py` | Working project documents, dirty generations, selected conversation, Whiteboard history cursor, semantic reducer events and effects | Core worker |
 | `mem.py` | Canonical project documents and revision; acceptance and persistence scheduling | Mem worker |
 | `disk.py` | Project loading, document writes, historical snapshot reads/creation, filesystem path validation | Disk worker |

@@ -3,6 +3,8 @@
 import tkinter as tk
 from tkinter import simpledialog, ttk
 
+from .theme import COLORS
+
 from . import workspace
 
 g = {"window": None, "send": None, "flush": None, "build-panel": None,
@@ -145,13 +147,13 @@ def build_tab_page(tab):
     page = ttk.Frame(widgets["notebook"])
     page.columnconfigure(0, weight=1)
     page.rowconfigure(0, weight=1)
-    canvas = tk.Canvas(page, background="#e8edf3", highlightthickness=0, yscrollincrement=24)
+    canvas = tk.Canvas(page, background=COLORS["app"], highlightthickness=0, yscrollincrement=24)
     canvas.grid(row=0, column=0, sticky="nsew")
     scrollbar = ttk.Scrollbar(page, orient="vertical",
                               command=lambda *args: handle_when_scrollbar_moves_tab(tab["id"], args))
     scrollbar.grid(row=0, column=1, sticky="ns")
     canvas.configure(yscrollcommand=scrollbar.set)
-    body = tk.Frame(canvas, background="#e8edf3", padx=6, pady=6)
+    body = tk.Frame(canvas, background=COLORS["app"], padx=6, pady=6)
     window_id = canvas.create_window(0, 0, window=body, anchor="nw")
     canvas.bind("<Configure>", lambda event: canvas.itemconfigure(window_id, width=event.width))
     body.bind("<Configure>", lambda event: canvas.configure(scrollregion=canvas.bbox("all")))
@@ -165,7 +167,7 @@ def build_selected_tab_rows():
     body = pages[tab["id"]]["body"]
     for row_id in tab["row-ids"]:
         record = document["rows"][row_id]
-        frame = tk.Frame(body, height=record["height"], background="#e8edf3")
+        frame = tk.Frame(body, height=record["height"], background=COLORS["app"])
         frame.pack(fill="x")
         frame.grid_propagate(False)
         frame.columnconfigure(1, weight=1)
@@ -285,7 +287,7 @@ def handle_when_user_releases_column_divider(row_id):
 
 
 def build_row_resize_handle(parent, row_id):
-    handle = tk.Frame(parent, height=7, background="#b8c7da", cursor="sb_v_double_arrow")
+    handle = tk.Frame(parent, height=7, background=COLORS["divider"], cursor="sb_v_double_arrow")
     handle.pack(fill="x", pady=(2, 5))
     drag = {"y": None, "height": None}
 

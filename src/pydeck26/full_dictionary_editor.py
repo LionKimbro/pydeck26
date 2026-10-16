@@ -4,6 +4,8 @@ import json
 import tkinter as tk
 from tkinter import ttk
 
+from .theme import COLORS
+
 g = {"save-fn": None, "status-fn": None, "after-id": None}
 widgets = {}
 reference = {
@@ -125,7 +127,7 @@ def show_json_error(exc: json.JSONDecodeError) -> None:
     """Mark the exact parser location without obscuring the remainder of the document."""
     editor=widgets["editor"]; clear_error_tags(); index=f"1.0+{exc.pos}c"; line=f"{exc.lineno}.0"
     editor.tag_add("json-error-line",line,f"{exc.lineno}.end"); editor.tag_add("json-error-char",index,f"{index}+1c")
-    editor.tag_configure("json-error-line",background="#fff0f0"); editor.tag_configure("json-error-char",background="#f2a5a5")
+    editor.tag_configure("json-error-line",background=COLORS["error-surface"]); editor.tag_configure("json-error-char",background=COLORS["error-highlight"])
     editor.mark_set("insert",index); editor.see(index); set_status(f"JSON error at line {exc.lineno}, column {exc.colno}: {exc.msg}")
 
 def clear_error_tags() -> None:

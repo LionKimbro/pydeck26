@@ -4,6 +4,8 @@ from copy import deepcopy
 from uuid import uuid4
 import tkinter as tk
 from tkinter import filedialog, ttk
+
+from .theme import COLORS
 from PIL import Image, ImageTk
 from tkinterdnd2 import DND_FILES
 
@@ -30,13 +32,13 @@ def clear_panels():
 
 def build_panel(details):
     record, parent = details["panel"], details["parent"]
-    header = tk.Frame(parent, background="#ffffff")
+    header = tk.Frame(parent, background=COLORS["panel"])
     header.grid(row=0, column=0, sticky="ew", padx=10, pady=6)
-    tk.Label(header, text="IMAGE", background="#ffffff", foreground="#173b62",
+    tk.Label(header, text="IMAGE", background=COLORS["panel"], foreground=COLORS["accent"],
              font=("TkDefaultFont", 12, "bold")).pack(side="left")
     parent.rowconfigure(0, weight=0)
     parent.rowconfigure(1, weight=1)
-    canvas = tk.Canvas(parent, background="#f2f5f8", highlightthickness=0, width=120, height=180)
+    canvas = tk.Canvas(parent, background=COLORS["editor"], highlightthickness=0, width=120, height=180)
     canvas.grid(row=1, column=0, sticky="nsew", padx=8)
     controls = ttk.Frame(parent, padding=5)
     controls.grid(row=2, column=0, sticky="ew")
@@ -46,7 +48,7 @@ def build_panel(details):
              "photo": None, "item": None, "requested": None, "token": None,
              "resize-id": None, "save-id": None, "busy": False, "status": status,
              "strokes": [], "stroke": None, "pen-enabled": False,
-             "placeholder": canvas.create_text(0, 0, text="Drop a JPEG, PNG, or GIF here", fill="#667789")}
+             "placeholder": canvas.create_text(0, 0, text="Drop a JPEG, PNG, or GIF here", fill=COLORS["secondary"])}
     panel["empty-controls"] = ttk.Frame(controls)
     panel["empty-controls"].pack(side="left")
     panel["paste"] = ttk.Button(panel["empty-controls"], text="Paste from Clipboard",
