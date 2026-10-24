@@ -11,7 +11,7 @@ widgets = {}
 reference = {
     "entry-weight": ("string", "Recommended depth for this entry.", "orientation"),
     "origin": ("string", "Where the project or concept came from.", ""),
-    "coordinates": ("object", "Repositories, paths, URLs, and document IDs.", {"github": ""}),
+    "coordinates": ("object", "Repositories, paths, URLs, and document IDs. Optional spark-id identifies the Spark that led to this project.", {"github": "", "spark-id": "<UUID>"}),
     "outline": ("array of strings", "Main facts someone should know.", [""]),
     "design-intent": ("string or array of strings", "What the project is for and why.", [""]),
     "clarifications": ("array of strings", "Boundaries and distinctions.", [""]),

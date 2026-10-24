@@ -99,6 +99,14 @@ def project_core_state(view):
         widgets["project-root-path"].configure(text=view["snapshot"]["root"])
         guid = view["snapshot"]["identity"].get("zookeep-project-guid", "")
         widgets["project-guid"].configure(text=f"(zookeep ID: {guid})" if guid else "")
+        coordinates = documents["dictionary"].get("coordinates")
+        spark_id = coordinates.get("spark-id") if isinstance(coordinates, dict) else None
+        if isinstance(spark_id, str) and spark_id.strip():
+            widgets["spark-guid"].configure(text=f"(spark ID: {spark_id})")
+            widgets["spark-guid"].pack(side="left", padx=(8, 0))
+        else:
+            widgets["spark-guid"].configure(text="")
+            widgets["spark-guid"].pack_forget()
         marker = "[*] " if view["dirty"] else ""
         widgets["window"].title(f"{marker}PyDeck 26: {title}")
         for key in ("name", "title", "tags", "hook"):
@@ -511,6 +519,11 @@ def handle_when_user_clicks_project_guid(event):
         copy_text_to_clipboard(str(g["view"]["snapshot"]["identity"].get("zookeep-project-guid", "")))
 
 
+def handle_when_user_clicks_spark_guid(event):
+    if g["view"]:
+        copy_text_to_clipboard(g["view"]["documents"]["dictionary"]["coordinates"]["spark-id"])
+
+
 def handle_when_lionscliapp_forwards_message(message):
     if message.get("type") == "summon" and not g["closing"]:
         app.bring_window_to_front(widgets["window"])
@@ -560,10 +573,13 @@ def build_masthead(window: tk.Toplevel) -> None:
     guid = tk.Label(path_line, background=COLORS["top"], foreground=COLORS["muted"], cursor="hand2", font=("TkDefaultFont", 9))
     guid.pack(side="left", padx=(8, 0))
     guid.bind("<Button-1>", handle_when_user_clicks_project_guid)
+    spark = tk.Label(path_line, background=COLORS["top"], foreground=COLORS["muted"], cursor="hand2", font=("TkDefaultFont", 9))
+    spark.bind("<Button-1>", handle_when_user_clicks_spark_guid)
     widgets["title"] = title
     widgets["hook"] = hook
     widgets["project-root-path"] = path
     widgets["project-guid"] = guid
+    widgets["spark-guid"] = spark
 
 
 def build_cockpit_surface(window: tk.Toplevel) -> None:

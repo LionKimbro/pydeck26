@@ -38,3 +38,15 @@ indent: 2
   Maybe there are two layers of under-architecture:
   1. DEEP under-architecture -- like for the shipyard
   2. Temple of Focus under-architecture -- what's common between Today/Arcs/PyDeck/Focus/...
+== 2026-10-23 17:16:23 ==
+guid: 44ddfc80-d8d1-4bb6-8401-b1d1c0adfa5c
+date: 2026-10-23
+time: 17:16:23
+hook: added [+ Sweeper request]
+tags: sweeper
+major: false
+indent: 2
+
+  I've added the Sweeper Request feature today;
+  
+  Now I just remember what I'd wanted to do with it..!

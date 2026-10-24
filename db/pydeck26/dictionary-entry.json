@@ -65,6 +65,7 @@
   ],
   "coordinates": {
     "github": "https://github.com/LionKimbro/pydeck26",
+    "spark-id": "add86afb-90f1-4b5d-87ae-40155439ae60",
     "project-data-directory": "db/pydeck26",
     "dictionary-entry": "db/pydeck26/dictionary-entry.json",
     "whiteboard-current": "db/pydeck26/whiteboard.txt",
