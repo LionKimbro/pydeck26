@@ -84,6 +84,19 @@ def handle_when_disk_resolves_structure_paths():
     ]))
 
 
+def handle_when_disk_creates_sweeper_request():
+    ms.set_register(("sweeper-path", None))
+    ms.set_register(("error", None))
+    try:
+        from sweeperagent import create_request
+
+        path = create_request(g["project-root"], ms.get_register("sweeper-request"))
+    except (ImportError, OSError, ValueError, TypeError) as error:
+        ms.set_register(("error", f"Could not save Sweeper request: {error}"))
+    else:
+        ms.set_register(("sweeper-path", str(path)))
+
+
 def get_image_asset_path(asset):
     if not workspace.is_image_asset_reference(asset):
         raise ValueError("Invalid image asset reference")
@@ -130,6 +143,7 @@ def handle_when_disk_reads_image_asset():
 
 
 HANDLERS = {
+    "CREATE_SWEEPER_REQUEST": handle_when_disk_creates_sweeper_request,
     "LOAD_PROJECT": handle_when_disk_loads_bound_project,
     "WRITE_DOCUMENTS": handle_when_disk_writes_project_documents,
     "READ_HISTORY": handle_when_disk_reads_whiteboard_history,

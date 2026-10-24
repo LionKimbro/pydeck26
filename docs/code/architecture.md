@@ -22,6 +22,7 @@ Today's `docs/architecture-review.md` and current `src/today` implementation.
 | `captains_log.py` | LSF conversion, validation, revision chains, independent log record operations | Pure operations; LSF I/O via Disk |
 | `captains_log_core.py` | Save validation, working proposals, durable entry projection and generation-indexed acknowledgments | Core worker |
 | `captains_log_ui.py` | Entry drafts, selections, minute clock, modifier state, log widgets | Main thread |
+| `sweeper_ui.py` | Sweeper request form, local validation, submission token, save acknowledgment | Main thread |
 | `machine.py` | Permanent/dynamic runtime registry, thread-local runtime selection, supervised workers, routing, lifecycle and fatal latch | Shared mechanics |
 | `mobile_stacks.py` | Traveling continuation frames and registers | Accessed through each worker's runtime |
 | `main.py` | Project-root binding, queues, startup, main loop and final joins | Main thread |
@@ -31,6 +32,16 @@ Today's `docs/architecture-review.md` and current `src/today` implementation.
 Today-style outer workspace around the existing project instruments in `tk.py`.
 There is no dependency on Today; PyDeck retains project-local records rather
 than adopting Today's day bundles. Its image panel behavior follows Today.
+
+The toolbar's Sweeper form posts a plain `SWEEPER_REQUEST`. Core adds the bound
+project identity and interface/tab context, then sends a Mobile Stack to Disk.
+Disk calls `sweeperagent.create_request()` from `lions-sweeper-agent`; the library
+owns the request schema, GUID/time generation, and atomic publication under
+`db/sweep-requests/`. Requests are independent of Mem's project documents and
+never save unrelated drafts. A `SWEEPER_RESULT` returns through Core after the
+write. Tk prevents duplicate clicks while pending and keeps the form on failure.
+Core's outstanding-stack shutdown barrier includes these writes. PyDeck captures
+requests only; it does not launch or configure the Sweeper engine.
 
 ## Workspace and hosting
 

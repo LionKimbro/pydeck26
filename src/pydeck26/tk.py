@@ -12,7 +12,7 @@ import webbrowser
 
 import lionscliapp as app
 
-from . import captains_log_ui, description_editor, framing, full_dictionary_editor, git_ui, ideas, image_ui, machine, panel_geometry, resource_editor
+from . import captains_log_ui, description_editor, framing, full_dictionary_editor, git_ui, ideas, image_ui, machine, panel_geometry, resource_editor, sweeper_ui
 
 g = {"project-root": None, "commands": None, "seq": 0, "view": None,
      "projecting": False, "closing": False, "conversation-id": None,
@@ -73,6 +73,8 @@ def handle_when_polling_core_commands():
                 git_ui.project_git_state(command)
             elif command["type"] == "CAPTAINS_LOG_RESULT":
                 captains_log_ui.apply_result(command)
+            elif command["type"] == "SWEEPER_RESULT":
+                sweeper_ui.apply_result(command)
     except Empty:
         pass
     root.after(20, handle_when_polling_core_commands)
@@ -575,10 +577,19 @@ def build_cockpit_surface(window: tk.Toplevel) -> None:
     widgets["project-initialization"] = banner
     widgets["workspace-root"] = body
     framing.initialize_framing({"parent": body, "window": window, "send": send,
+        "sweeper-request": handle_when_user_creates_sweeper_request,
         "flush": flush_editor_drafts, "build-panel": build_hosted_panel, "clear-panels": clear_panel_widgets})
 
 
 
+
+
+def handle_when_user_creates_sweeper_request():
+    if g["closing"] or not g["view"] or not g["view"]["ready"]:
+        return
+    sweeper_ui.show_form({"window": widgets["window"], "send": send,
+        "project-root": str(g["project-root"]),
+        "tab-id": framing.g["selected-tab"]})
 
 
 def build_structure_card() -> tk.Frame:

@@ -9,7 +9,8 @@ from . import workspace
 
 g = {"window": None, "send": None, "flush": None, "build-panel": None,
      "clear-panels": None, "document": None, "signature": None,
-     "projecting": False, "selected-tab": None, "generation": 0}
+     "projecting": False, "selected-tab": None, "generation": 0,
+     "sweeper-request": None}
 widgets = {}
 pages = {}
 rows = {}
@@ -31,7 +32,8 @@ def initialize_framing(context):
     toolbar.pack(fill="x")
     for label, handler in (("+ Tab", handle_when_user_creates_tab),
                            ("Rename tab", handle_when_user_renames_tab),
-                           ("Remove tab", handle_when_user_removes_tab)):
+                           ("Remove tab", handle_when_user_removes_tab),
+                           ("+ Sweeper request", context["sweeper-request"])):
         ttk.Button(toolbar, text=label, command=handler).pack(side="left", padx=(0, 6))
     ttk.Label(toolbar, text="Choose panels in each slot · drag column dividers and row edges").pack(side="left", padx=8)
     notebook = ttk.Notebook(parent)

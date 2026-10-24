@@ -64,6 +64,81 @@ def project(tmp_path):
             finish()
 
 
+@pytest.mark.parametrize("directive", ["go-ahead", "please-investigate", "please-hold"])
+def test_sweeper_capture_uses_library_on_disk_and_preserves_documents(project, monkeypatch, directive):
+    import sweeperagent
+
+    root, commands = project
+    calls = []
+    original = sweeperagent.create_request
+
+    def create_request(project_root, record):
+        assert current_thread() is machine.machines["DISK"]["thread"]
+        calls.append(record)
+        return original(project_root, record)
+
+    monkeypatch.setattr(sweeperagent, "create_request", create_request)
+    send({"type": "WHITEBOARD_EDIT", "text": "independent unsaved draft"})
+    state(commands, lambda view: view["view-text"] == "independent unsaved draft")
+    send({"type": "SWEEPER_REQUEST", "token": "capture-1", "tab-id": "cockpit",
+          "request": {"title": "A request", "description": "Keep Unicode: café 🌿", "directive": directive}})
+    result = receive(commands, lambda item: item["type"] == "SWEEPER_RESULT")
+    assert result["token"] == "capture-1"
+    assert result["error"] is None
+    files = list((root / "db" / "sweep-requests").glob("*.json"))
+    assert len(files) == 1
+    record = json.loads(files[0].read_text(encoding="utf-8"))
+    assert record["request"] == calls[0]["request"]
+    assert record["project"]["name"] == root.name
+    assert record["context"]["active_item_id"] == "cockpit"
+    assert record["execution"]["status"] == "pending"
+    assert load_whiteboard(root) == ""
+
+
+def test_sweeper_write_error_is_recoverable(project, monkeypatch):
+    import sweeperagent
+
+    root, commands = project
+
+    def fail_write(project_root, record):
+        raise PermissionError("Request folder is read-only")
+
+    monkeypatch.setattr(sweeperagent, "create_request", fail_write)
+    send({"type": "SWEEPER_REQUEST", "token": "capture-2", "tab-id": None,
+          "request": {"title": "A request", "description": "Details", "directive": "please-hold"}})
+    result = receive(commands, lambda item: item["type"] == "SWEEPER_RESULT")
+    assert "read-only" in result["error"]
+    assert not machine.fatal.is_set()
+    assert not (root / "db" / "sweep-requests").exists()
+
+
+def test_shutdown_waits_for_submitted_sweeper_request(project, monkeypatch):
+    import sweeperagent
+
+    root, commands = project
+    started, release = Event(), Event()
+    original = sweeperagent.create_request
+
+    def held_write(project_root, record):
+        started.set()
+        assert release.wait(5)
+        return original(project_root, record)
+
+    monkeypatch.setattr(sweeperagent, "create_request", held_write)
+    send({"type": "SWEEPER_REQUEST", "token": "capture-close", "tab-id": None,
+          "request": {"title": "Before closing", "description": "Keep this request", "directive": "please-hold"}})
+    try:
+        assert started.wait(5)
+        send({"type": "SHUTDOWN"})
+        state(commands, lambda view: core.g["closing"])
+        assert not core.g["stop-requested"]
+    finally:
+        release.set()
+    receive(commands, lambda item: item["type"] == "SHUTDOWN_COMPLETE")
+    finish()
+    assert len(list((root / "db" / "sweep-requests").glob("*.json"))) == 1
+
+
 def test_edits_stay_working_until_save_and_views_are_copies(project):
     root, commands = project
     send({"type": "WHITEBOARD_EDIT", "text": "working"})

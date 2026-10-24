@@ -172,6 +172,12 @@ def reduce_event(event):
         image_core.reduce_image_event(event)
     elif kind == "GIT_RETURNED":
         git_core.reduce_git_event(event)
+    elif kind == "SWEEPER_RETURNED":
+        g["status"] = event["error"] or f"Sweeper request saved: {event['sweeper-path']}"
+        effects.append({"type": "TK", "command": {
+            "type": "SWEEPER_RESULT", "token": event["token"],
+            "error": event["error"], "path": event["sweeper-path"],
+        }})
     elif not g["ready"] or g["closing"]:
         finish_close_when_saved()
         return
@@ -179,6 +185,19 @@ def reduce_event(event):
         request_commit(dirty | {"whiteboard", "workspace"})
     elif kind == "GIT_REQUEST":
         git_core.reduce_git_event(event)
+    elif kind == "SWEEPER_REQUEST":
+        identity = g["snapshot"]["identity"]
+        record = {
+            "project": {"name": identity.get("name") or Path(g["snapshot"]["root"]).name,
+                        "zoo_id": identity.get("zookeep-project-guid")},
+            "request": deepcopy(event["request"]),
+            "context": {"interface": "pydeck26", "component": "workspace-toolbar",
+                        "active_item_id": event.get("tab-id"), "notes": ""},
+        }
+        effects.append({"type": "STACK", "registers": {
+            "sweeper-request": record, "token": event["token"],
+        }, "frames": [{"machine": "CORE", "entry": "SWEEPER_RETURNED"},
+                       {"machine": "DISK", "entry": "CREATE_SWEEPER_REQUEST"}]})
     elif kind == "CAPTAINS_LOG_SAVE":
         captains_log_core.save_draft(event)
     elif kind in image_core.EVENTS:
@@ -373,6 +392,7 @@ HANDLERS = {name: handle_when_core_receives_stack_result for name in (
     "PROJECT_RETURNED", "COMMIT_RETURNED", "HISTORY_RETURNED",
     "SNAPSHOT_RETURNED", "RESOURCE_RETURNED", "STRUCTURE_RETURNED",
     "IMAGE_IMPORTED", "IMAGE_PREVIEW_RETURNED", "GIT_RETURNED",
+    "SWEEPER_RETURNED",
 )}
 
 

@@ -30,6 +30,16 @@ Drafts stay in Tk when switching entries or tabs; red list rows identify unsaved
 
 Use **+ Tab**, **Rename tab**, and **Remove tab** in the toolbar, and **+ Add row** at the bottom of the tab. A row's rail offers **x1/x2/x3**, **↑/↓** to reorder it, and **×** to remove it. Drag column dividers to change widths and the shaded edge beneath a row to change its height. Tabs scroll vertically and remember their position. Removing tabs or rows preserves their panels so they can be hosted again.
 
+Use **+ Sweeper request** beside the tab controls to capture a title, description,
+and directive (**Go ahead**, **Please investigate**, or **Please hold**) for the
+open project. **Save request** uses the `lions-sweeper-agent` library to create a
+pending request at `db/sweep-requests/<GUID>.json`, with the project identity and
+active tab as context. The form closes after a successful write; a failed write
+keeps your text available for retry. Capturing does not start Sweeper; a separately
+running Sweeper engine handles requests according to its subscriptions and the
+chosen directive. Unsaved forms are discarded when PyDeck exits; submitted
+requests finish writing before shutdown.
+
 Captain's Log and Conversations also have a draggable divider between their entry list and editor. Each panel remembers its internal split in `workspace.json`, restoring the same proportions across tabs, window resizing, and restart. Moving these dividers saves layout only; it does not post unsaved Captain's Log notes.
 
 ## Run
