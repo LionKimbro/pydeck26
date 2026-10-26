@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "request_id": "a2359da2-1a16-4605-a600-6b129f6162f0",
+  "created_at": "2026-10-23T17:25:59-07:00",
+  "project": {
+    "name": "pydeck26",
+    "zoo_id": "6a6fb6e2-f293-4003-bc59-eed92d19ea9a"
+  },
+  "request": {
+    "title": "Add Spark-ID to the Dictionary and Display It",
+    "description": "In the \"Dictionary\" panel's [Oepn Full Entry] window, -- in the \"coordinates\", include a mention of the \"spark-id\": \"<uuid>\", which is the identifier for the Spark that led to the project.  It is optional.  So it would say:\n\n---\ncoordinates\n\nType: object\n\nRepositories, paths, URLs, and document IDs.\n\nExample:\n{\n  \"coordinates\": {\n    \"github\": \"https://github.com/LionKimbro/...\",\n    \"spark-id\": \"<UUID>\",\n    ...\n  }\n}\n\n---\n\nIf it is supplied, in the header banner (that has the title of the project, the hook for the project, the filepath for the project, and also the zookeep ID for the project,) add a GUID after the zookeep ID, like: \"(spark ID: <UUID>)\" with the same coloring and style as the zookeep ID's presentation.",
+    "directive": "go-ahead"
+  },
+  "context": {
+    "interface": "pydeck26",
+    "component": "workspace-toolbar",
+    "active_item_id": "cockpit",
+    "notes": ""
+  },
+  "execution": {
+    "status": "pending",
+    "agent": null,
+    "started_at": null,
+    "completed_at": null
+  }
+}

@@ -138,7 +138,7 @@ def project_core_state(view):
             tree.delete(*tree.get_children())
             for item in documents["ideas"]["items"]:
                 if item.get("pinned"):
-                    tree.insert("", "end", iid=item["guid"], values=(item.get("status", ""), item.get("title", "")))
+                    tree.insert("", "end", iid=item["guid"], values=(item.get("status", ""), item.get("title", ""), item.get("hook", "")))
         for panel_id, editor in notes_editors.items():
             text = documents["workspace"]["panels"][panel_id]["text"]
             if editor.get("1.0", "end-1c") != text:
@@ -673,7 +673,10 @@ def build_ideas_card() -> tk.Frame:
     card.grid(row=0,column=0,sticky="nsew",padx=5,pady=5); card.columnconfigure(0,weight=1); card.rowconfigure(2,weight=1)
     header = build_panel_title_row(card, "IDEAS")
     tk.Label(card,text="pinned possible work",background=COLORS["panel"],foreground=COLORS["secondary"],font=("TkDefaultFont",9)).grid(row=1,column=0,sticky="w")
-    tree=ttk.Treeview(card,columns=("status","title"),show="headings",height=5); tree.heading("status",text="Status"); tree.heading("title",text="Title"); tree.column("status",width=95,stretch=False); tree.column("title",width=250,stretch=True)
+    tree=ttk.Treeview(card,columns=("status","title","hook"),show="headings",height=5)
+    for key, label, width in [("status", "Status", 95), ("title", "Title", 180), ("hook", "Hook", 210)]:
+        tree.heading(key, text=label)
+        tree.column(key, width=width, stretch=key != "status")
     tree.grid(row=2,column=0,sticky="nsew",pady=(5,0)); tree.bind("<Double-Button-1>",lambda e: ideas.open_editor(tree.selection()[0] if tree.selection() else None))
     ttk.Button(card,text="Directory",command=ideas.open_directory).grid(row=3,column=0,sticky="w",pady=(6,0)); widgets["ideas-tree"]=tree
     return header

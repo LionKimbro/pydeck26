@@ -65,22 +65,23 @@ def open_editor(guid: str | None) -> None:
     source=find_item(guid) if guid else make_new_item()
     if source is None: return
     item=deepcopy(source)
+    item.setdefault("hook", "")
     w=tk.Toplevel(g["root"]); w.title("PyDeck 26 — Idea Editor"); w.columnconfigure(1,weight=1)
     fields={};
-    for row,key,label in [(0,"guid","GUID"),(1,"title","Title"),(2,"status","Status"),(3,"date-conceived","Date conceived"),(4,"date-entered","Date entered"),(5,"tags","Tags")]:
+    for row,key,label in [(0,"guid","GUID"),(1,"title","Title"),(2,"hook","Hook"),(3,"status","Status"),(4,"date-conceived","Date conceived"),(5,"date-entered","Date entered"),(6,"tags","Tags")]:
         ttk.Label(w,text=label).grid(row=row,column=0,sticky="w",padx=8,pady=3)
         if key=="status": control=ttk.Combobox(w,values=["conceived","sketching","implementing","implemented","aborted"])
         else: control=ttk.Entry(w)
         control.grid(row=row,column=1,sticky="ew",padx=8,pady=3); control.insert(0," ".join(item[key]) if key=="tags" else item[key]); fields[key]=control
         if key=="guid": control.configure(state="readonly")
-    for row,key,height in [(6,"description",5),(7,"notes",10)]:
+    for row,key,height in [(7,"description",5),(8,"notes",10)]:
         ttk.Label(w,text=key.title()).grid(row=row,column=0,sticky="nw",padx=8,pady=3); t=tk.Text(w,height=height,wrap="word"); t.grid(row=row,column=1,sticky="ew",padx=8,pady=3); t.insert("1.0",item[key]); fields[key]=t
-    pinned=tk.BooleanVar(value=item["pinned"]); ttk.Checkbutton(w,text="Pinned",variable=pinned).grid(row=8,column=1,sticky="w",padx=8)
-    ttk.Button(w,text="Save",command=lambda:save_editor({"fields":fields,"pinned":pinned,"window":w,"item":item})).grid(row=9,column=1,sticky="e",padx=8,pady=8)
+    pinned=tk.BooleanVar(value=item["pinned"]); ttk.Checkbutton(w,text="Pinned",variable=pinned).grid(row=9,column=1,sticky="w",padx=8)
+    ttk.Button(w,text="Save",command=lambda:save_editor({"fields":fields,"pinned":pinned,"window":w,"item":item})).grid(row=10,column=1,sticky="e",padx=8,pady=8)
     fields["title"].focus_set(); widgets["idea-editor"]=w
 
 def make_new_item() -> dict:
-    today=date.today().isoformat(); return {"guid":str(uuid.uuid4()),"title":"","description":"","status":"conceived","date-conceived":today,"date-entered":today,"notes":"","tags":[],"pinned":False}
+    today=date.today().isoformat(); return {"guid":str(uuid.uuid4()),"title":"","hook":"","description":"","status":"conceived","date-conceived":today,"date-entered":today,"notes":"","tags":[],"pinned":False}
 
 def find_item(guid: str | None) -> dict | None:
     for item in g["document"]["items"]:
@@ -91,5 +92,5 @@ def save_editor(draft: dict) -> None:
     fields=draft["fields"]; pinned=draft["pinned"]; window=draft["window"]
     tags=fields["tags"].get().split()
     if any(not re.fullmatch(r"[a-z0-9_]+",tag) for tag in tags): return
-    item=draft["item"]; item.update({"title":fields["title"].get(),"status":fields["status"].get(),"date-conceived":fields["date-conceived"].get(),"date-entered":fields["date-entered"].get(),"tags":tags,"pinned":pinned.get(),"description":fields["description"].get("1.0","end-1c"),"notes":fields["notes"].get("1.0","end-1c")})
+    item=draft["item"]; item.update({"title":fields["title"].get(),"hook":fields["hook"].get(),"status":fields["status"].get(),"date-conceived":fields["date-conceived"].get(),"date-entered":fields["date-entered"].get(),"tags":tags,"pinned":pinned.get(),"description":fields["description"].get("1.0","end-1c"),"notes":fields["notes"].get("1.0","end-1c")})
     g["save"](item); window.destroy()
